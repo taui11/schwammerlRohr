@@ -79,10 +79,15 @@ DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"  # Path to DIAMOND databas
 
 
 ### 5. Launch the pipeline
+Following example uses `nr_001.hifireads.fastq.gz, nr_002.hifireads.fastq.gz, nr_003.hifireads.fastq.gz` as input files.
 ```bash
-snakemake --cores 20 --snakefile ./bin/Snakefile --use-singularity
+snakemake \
+  --cores 20 \
+  --snakefile ./bin/Snakefile \
+  --use-singularity \
+  --config project_nr=nr_ samples=001,002,003
 ```
-If there are problems running snakemake you might have to activate a conda environment for snakemake
+If there are problems running snakemake try to activate a conda environment for snakemake.
 
 ---
 

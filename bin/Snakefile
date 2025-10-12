@@ -3,8 +3,6 @@
 ###########################
 
 
-SAMPLES = ["001"]#, "002", "003", "004", "005", "006"]
-PROJECT_NR = "nr_"
 API_KEY = ""
 DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"
 
@@ -13,8 +11,11 @@ DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"
 #   Fixed Variables and Directories  #
 ######################################
 
-THREADS = workflow.cores
+
+PROJECT_NR = config.get("project_nr", "nr_") 
+SAMPLES = config.get("samples", "001").split(",")  
 SAMPLE = config.get("sample", None)
+THREADS = workflow.cores
 OUTPUT_DIR = "PacBio_output"
 INPUT_DIR = "PacBio_data"
 SINGULARITY_DIR = "bin/singularity"
