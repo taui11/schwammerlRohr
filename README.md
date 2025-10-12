@@ -87,7 +87,7 @@ schwammerlRohr/
 
 ## Related Project
 This pupeline integrates with the R package
-**[mycoBinR](https://https://github.com/taui11/mycoBinR)**
+**[mycoBinR](https://github.com/taui11/mycoBinR)**
 for downstream analysis and report generation.
 
 ## Acknowledgments
