@@ -60,23 +60,9 @@ Open **`bin/Snakefile`** and edit the section labeled
 to match your project setup:
 
 ```python
-SAMPLES = ["001"]  # List of sample identifiers (add more if needed)
-PROJECT_NR = "nr_"  # Project prefix used for output file names
 API_KEY = ""        # Optional: API key for mycoBinR report generation
 DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"  # Path to DIAMOND database
 ```
-
-**Tips:**
-
-* Add more samples:
-
-  ```python
-  SAMPLES = ["001", "002", "003"]
-  ```
-* Make sure `DIAMOND_DB` points to the correct `.dmnd` database file.
-* If no API key is used, leave it empty (`""`).
-* Adjust `THREADS` to match your system’s available cores.
-
 
 ### 5. Launch the pipeline
 Following example uses `nr_001.hifireads.fastq.gz, nr_002.hifireads.fastq.gz, nr_003.hifireads.fastq.gz` as input files.
