@@ -65,7 +65,7 @@ DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"  # Path to DIAMOND databas
 ```
 
 ### 5. Launch the pipeline
-Following example uses `nr_001.hifireads.fastq.gz, nr_002.hifireads.fastq.gz, nr_003.hifireads.fastq.gz` as input files.
+Following example uses `nr_001.hifireads.fastq.gz`, `nr_002.hifireads.fastq.gz`, `nr_003.hifireads.fastq.gz` as input files.
 ```bash
 snakemake \
   --cores 20 \
