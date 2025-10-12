@@ -62,7 +62,6 @@ to match your project setup:
 ```python
 SAMPLES = ["001"]  # List of sample identifiers (add more if needed)
 PROJECT_NR = "nr_"  # Project prefix used for output file names
-THREADS = 10        # Number of CPU cores to use
 API_KEY = ""        # Optional: API key for mycoBinR report generation
 DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"  # Path to DIAMOND database
 ```
