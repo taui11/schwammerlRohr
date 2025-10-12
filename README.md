@@ -1,18 +1,16 @@
-# schwammerlRohr 🍄  
+# schwammerlRohr 
 *A Bioinformatics Pipeline for Semi-Supervised Symbiotic Metagenome Binning*
 
 ---
 
-## 🧬 Overview
+## Overview
 **schwammerlRohr** is a modular, reproducible bioinformatics pipeline designed for **semi-supervised binning of symbiotic metagenomes**, integrating long-read sequencing data, genome assembly, and quality assessment.
 
 The workflow is built with **[Snakemake](https://snakemake.github.io/)** and incorporates multiple established bioinformatics tools within **Singularity containers** for consistent and portable execution.
 
-> The name *schwammerlRohr* (Austrian German for “mushroom pipe”) reflects both the fungal component of the studied symbiotic systems and the pipeline nature of the workflow — a nod to the naming style of classic tools like *BUSCO*.
-
 ---
 
-## ⚙️ Features
+## Features
 - **Reproducible**: containerized with Singularity for consistent environments  
 - **Modular**: easily extendable for new tools or analysis steps  
 - **Semi-supervised binning**: integrates fungal and algal/plant metagenomes  
@@ -21,7 +19,7 @@ The workflow is built with **[Snakemake](https://snakemake.github.io/)** and inc
 
 ---
 
-## 🧩 Pipeline Components
+## Pipeline Components
 | Step | Tool | Purpose |
 |------|------|----------|
 | Quality control | LongQC | Assess raw long-read quality |
@@ -34,7 +32,7 @@ The workflow is built with **[Snakemake](https://snakemake.github.io/)** and inc
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### 1. Clone the repository
 ```bash
@@ -63,7 +61,7 @@ If there are problems running snakemake you might have to activate a conda envir
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 ```python
 schwammerlRohr/
 ├── bin/                  # Scripts and Snakemake rules
@@ -76,3 +74,26 @@ schwammerlRohr/
 ├── PacBio_output/        # Pipeline output
 └── README.md             # This file
 ```
+
+---
+
+## Requirements
+
+* **Linux environment**
+* **Snakemake ≥8.0**
+* **Singularity (or Apptainer) ≥3.8**
+* ~50 GB free disk space for containers and temp data
+
+---
+
+## Related Project
+This pupeline integrates with the R package
+**[mycoBinR](https://https://github.com/taui11/mycoBinR)**
+for downstream analysis and report generation.
+
+## Acknowledgments
+Developed as part of the Bachelor's Thesis project at the Institute of Biomedical Informatics, TU Graz.
+
+Special thanks to the open-source bioinformatics community for providing all integrated tools.
+
+
