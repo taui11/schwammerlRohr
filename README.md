@@ -60,7 +60,7 @@ Open **`bin/Snakefile`** and edit the section labeled
 to match your project setup:
 
 ```python
-API_KEY = ""        # Optional: API key for mycoBinR report generation
+API_KEY = ""        # NCBI-API key for mycoBinR report generation
 DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"  # Path to DIAMOND database
 ```
 
