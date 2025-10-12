@@ -55,7 +55,7 @@ PacBio_data/
 
 ### 4. Launch the pipeline
 ```bash
-snakemake --cores 4 --snakefile ./bin/Snakefile --use-singularity
+snakemake --cores 20 --snakefile ./bin/Snakefile --use-singularity
 ```
 If there are problems running snakemake you might have to activate a conda environment for snakemake
 
@@ -82,7 +82,6 @@ schwammerlRohr/
 * **Linux environment**
 * **Snakemake ≥8.0**
 * **Singularity (or Apptainer) ≥3.8**
-* ~50 GB free disk space for containers and temp data
 
 ---
 
