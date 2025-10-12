@@ -1,0 +1,244 @@
+#############################
+#   SAMPLE-NAMES & THREADS  #
+#############################
+
+
+SAMPLES = ["001"]#, "002", "003", "004", "005", "006"]
+SAMPLE = config.get("sample", None)
+PROJECT_NR = "nr_"
+THREADS = 10
+API_KEY = ""
+DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"
+
+
+##################
+#   Directories  #
+##################
+
+
+OUTPUT_DIR = "PacBio_output"
+INPUT_DIR = "PacBio_data"
+SINGULARITY_DIR = "bin/singularity"
+
+
+#############
+#   RULES   #
+#############
+
+
+rule all:
+    input:
+        ".inputs_ok",
+        # LongQC outputs
+        expand(f"{OUTPUT_DIR}/longqc_output/{PROJECT_NR}{{sample}}_quality", sample=SAMPLES),
+        # Flye outputs
+        expand(f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye", sample=SAMPLES),
+        # CoverM outputs
+        expand(f"{OUTPUT_DIR}/coverm_output/{PROJECT_NR}{{sample}}_mean_cov", sample=SAMPLES),
+        # Busco outputs
+        expand(f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{{sample}}_busco", sample=SAMPLES),
+        # Diamond output
+        expand(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots", sample=SAMPLES),
+        # TelFinder output
+        expand(f"{OUTPUT_DIR}/telfinder_output/{PROJECT_NR}{{sample}}_telomeres", sample=SAMPLES),
+        # Report output
+        expand(f"{OUTPUT_DIR}/reports/{PROJECT_NR}{{sample}}_report.html", sample=SAMPLES)
+
+
+rule inputs_ok:
+    output:
+        ".inputs_ok"
+    run:
+        import os
+        missing = []
+        for sample in SAMPLES:
+            path = f"{INPUT_DIR}/{PROJECT_NR}{sample}.hifireads.fastq.gz"
+            if not os.path.isfile(path):
+                missing.append(path)
+        if missing:
+            print(f"\nInput files missing:\n" + "\n".join(missing) + "\n")
+            print("Please add these input files and rerun Snakemake.")
+            exit(1) 
+            
+        # Create marker that inputs are OK
+        with open(output[0], "w") as f:
+            f.write("All inputs found\n")
+
+rule longqc:
+    input:
+        ".inputs_ok",
+        fastq = f"{INPUT_DIR}/{PROJECT_NR}{{sample}}.hifireads.fastq.gz"
+    output:
+        longqc_dir = directory(f"{OUTPUT_DIR}/longqc_output/{PROJECT_NR}{{sample}}_quality")
+    threads: THREADS
+    singularity:
+        f"{SINGULARITY_DIR}/longqc.sif"
+    shell:
+        """
+        python /root/LongQC/longQC.py sampleqc \
+            -x pb-rs2 \
+            -p {threads} \
+            -o {output.longqc_dir} \
+            {input.fastq}
+        """
+
+rule flye_assembly:
+    input:
+        ".inputs_ok",
+        fastq = f"{INPUT_DIR}/{PROJECT_NR}{{sample}}.hifireads.fastq.gz"
+    output:
+        assembly_dir = directory(f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye"),
+        assembly = f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye/assembly.fasta"
+    threads: THREADS
+    singularity:
+        f"{SINGULARITY_DIR}/flye.sif"
+    shell:
+        """
+        flye --pacbio-hifi {input.fastq} \
+             --meta \
+             --out-dir {output.assembly_dir} \
+             --threads {threads}
+        """
+
+rule coverm_coverage:
+    input:
+        ".inputs_ok",
+        fastq = f"{INPUT_DIR}/{PROJECT_NR}{{sample}}.hifireads.fastq.gz",
+        assembly = f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye/assembly.fasta"
+    output:
+        coverage_dir = directory(f"{OUTPUT_DIR}/coverm_output/{PROJECT_NR}{{sample}}_mean_cov")
+    threads: THREADS
+    singularity:
+        f"{SINGULARITY_DIR}/coverm.sif"
+    shell:
+        """
+        mkdir -p {output.coverage_dir}
+        coverm contig \
+            --single {input.fastq} \
+            -r {input.assembly} \
+            -p minimap2-hifi \
+            -m mean \
+            --threads {threads} \
+            --bam-file-cache-directory {output.coverage_dir}/bam_cache \
+            -o {output.coverage_dir}/mean_coverage.tsv
+        """
+
+rule busco_run:
+    input:
+        ".inputs_ok",
+        assembly = f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye/assembly.fasta"
+    output:
+        busco_output = directory(f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{{sample}}_busco") 
+    threads: THREADS
+    singularity:
+        f"{SINGULARITY_DIR}/busco.sif"
+    shell:
+        """
+        busco -i {input.assembly} \
+              -m genome \
+              -l ascomycota_odb12 \
+              -o {PROJECT_NR}{wildcards.sample}_busco \
+              -c {threads} \
+              -r \
+              --out_path {OUTPUT_DIR}/busco_output/ \
+              --metaeuk
+              --download_path bin/BUSCO_downloads
+        """
+
+rule telfinder:
+    input:
+        ".inputs_ok",
+        assembly = f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye/assembly.fasta"
+    output:
+        telomeres_dir = directory(f"{OUTPUT_DIR}/telfinder_output/{PROJECT_NR}{{sample}}_telomeres")
+    threads: THREADS
+    singularity:
+        f"{SINGULARITY_DIR}/telfinder.sif"
+    shell:
+        """
+        mkdir -p {output.telomeres_dir}
+        python /opt/TelFinder/TelFinder.py -f fa -inf {input.assembly} -s NCR -o {output.telomeres_dir} -e left
+        python /opt/TelFinder/TelFinder.py -f fa -inf {input.assembly} -s NCR -o {output.telomeres_dir} -e right
+        """
+
+rule diamond_blastp:
+    input:
+        ".inputs_ok",   
+        dmnd = DIAMOND_DB
+    output:
+        outdir = directory(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots"),
+        m8     = f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots/{{sample}}.m8"
+    params:
+        busco_dir = lambda w: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{w.sample}_busco"
+    threads: THREADS
+    container:
+        f"{SINGULARITY_DIR}/diamond.sif"  
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p {output.outdir}
+
+        MINIPROT_DIR="{params.busco_dir}/run_ascomycota_odb12/miniprot_output/translated_proteins"
+        METAEUK_FILE="{params.busco_dir}/run_ascomycota_odb12/metaeuk_output/combined_pred_proteins.fas"
+
+        # Pick proteins source and create a unified FASTA
+        if [ -d "$MINIPROT_DIR" ] && ls "$MINIPROT_DIR"/*.faa >/dev/null 2>&1; then
+            PROT="{output.outdir}/{wildcards.sample}_miniprot.faa"
+            cat "$MINIPROT_DIR"/*.faa > "$PROT"
+        elif [ -f "$METAEUK_FILE" ]; then
+            PROT="{output.outdir}/{wildcards.sample}_metaeuk.faa"
+            cp "$METAEUK_FILE" "$PROT"
+        else
+            echo "No proteins found for BUSCO in sample {wildcards.sample}" >&2
+            # Create empty output to keep DAG moving, or 'exit 1' to fail hard:
+            : > "{output.m8}"
+            exit 0
+        fi
+
+        diamond blastp \
+            --query "$PROT" \
+            --db "{input.dmnd}" \
+            --threads {threads} \
+            --outfmt 102 \
+            --out "{output.m8}" \
+            --include-lineage \
+            --fast &>> {log}
+        """
+
+
+rule render_report:
+    input:
+        # Make sure your analysis finished first:
+        inputs_ok = ".inputs_ok",
+        longqc    = lambda wc: f"{OUTPUT_DIR}/longqc_output/{PROJECT_NR}{wc.sample}_quality",
+        flye      = lambda wc: f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{wc.sample}_flye",
+        coverm    = lambda wc: f"{OUTPUT_DIR}/coverm_output/{PROJECT_NR}{wc.sample}_mean_cov",
+        busco     = lambda wc: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{wc.sample}_busco",
+        diamond   = lambda wc: f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{wc.sample}_taxonomy_prots",
+        telfinder = lambda wc: f"{OUTPUT_DIR}/telfinder_output/{PROJECT_NR}{wc.sample}_telomeres",
+        # Reporting prerequisites (must already exist):
+        REPORT_SIF      = f"{SINGULARITY_DIR}/report.sif",  # built by setup.sh
+        RMD_SRC         = "bin/report.rmd"
+    output:
+        html = f"{OUTPUT_DIR}/reports/{PROJECT_NR}{{sample}}_report.html"
+    threads: THREADS
+    container:
+        f"{SINGULARITY_DIR}/report.sif"
+    shell:
+        r"""
+        set -eu
+        # Absolute output paths so rmarkdown won't get confused
+        Rscript --vanilla -e "rmarkdown::render('$PWD/bin/report.rmd', \
+            output_file = basename('$PWD/{output}'), \
+            output_dir  = dirname('$PWD/{output}'), \
+            output_format = 'html_document', \
+            params = list( \
+                sample     = '{wildcards.sample}', \
+                project_nr = '{PROJECT_NR}', \
+                # pass absolute base/output paths:
+                base_path  = '$PWD/{OUTPUT_DIR}', \
+                output_dir = '$PWD/{OUTPUT_DIR}', \
+                # tip: prefer env var; but leaving as-is if you want:
+                api_key    = '{API_KEY}' \
+            ))"
+        """

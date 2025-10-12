@@ -1,0 +1,192 @@
+---
+title: "`r paste0(params$project_nr, params$sample, '_report')`"
+output:
+  html_document:
+    toc: false
+    number_sections: false
+params:
+  sample: NA
+  project_nr: NA
+  output_dir: NA
+  base_path: NA
+  api_key: ""
+  extra_params: NULL
+---
+
+```{r setup, include=FALSE}
+# Alle Parameter aus Snakemake übernehmen
+all_params <- params
+
+# Load required libraries
+libs <- c("ape", "Biostrings", "clue", "cowplot", "dplyr", "FastaUtils",
+           "ggplot2", "ggpubr", "htmlTable", "igraph", "jsonlite", "knitr",
+          "mclust", "parallel", "purrr", "reshape2", "rjson", "Rsamtools", "stargazer",
+          "taxize", "taxonomizr", "tibble", "tidyr") #"ggraph",
+
+lapply(libs, library, character.only = TRUE)
+
+base_path <- params$base_path %||% getwd()
+project_nr <- params$project_nr
+samples <- params$sample
+API_KEY_GLOBAL = params$api_key
+```
+
+
+# Quality statistcs of the unsassembled libraries
+
+I used *longreadQC* to approximate the quality of the long read libraries.
+
+
+
+# Defining functions
+```{r funtions}
+    # Function to make plot creation easier
+create_plot <- function(df, fill_var, title, legend_title = NULL) {
+    p <- ggplot(df, aes(x = gc, y = log(cov), fill = fill_var)) +
+        geom_point(aes(size = len), alpha = 0.4, pch = 21) +
+        ggtitle(title) +
+        theme_bw()
+        
+    if (!is.null(legend_title)) {
+        p <- p + labs(fill = legend_title)
+    }
+    return(p)
+}
+
+# Drop contigs with no usable info (len, cov, gc all NA/zero AND no BUSCO counts)
+drop_empty_contigs <- function(DATA) {
+  if (is.null(DATA) || !nrow(DATA)) return(DATA)
+
+  # Ensure numeric
+  DATA$len <- suppressWarnings(as.numeric(DATA$len))
+  DATA$cov <- suppressWarnings(as.numeric(DATA$cov))
+  DATA$gc  <- suppressWarnings(as.numeric(DATA$gc))
+
+  # BUSCO columns might be absent; treat missing as 0 for the test
+  for (cc in c("Complete","Duplicated","Fragmented")) {
+    if (!cc %in% names(DATA)) DATA[[cc]] <- NA_integer_
+  }
+  busco_sum <- rowSums(cbind(DATA$Complete, DATA$Duplicated, DATA$Fragmented), na.rm = TRUE)
+
+  empty <- (is.na(DATA$len) | DATA$len <= 0) &
+           (is.na(DATA$cov) | DATA$cov <= 0) &
+           is.na(DATA$gc) &
+           (busco_sum == 0)
+
+  n_drop <- sum(empty, na.rm = TRUE)
+  if (n_drop > 0) message("Dropping ", n_drop, " empty contig(s) (no len/cov/gc and no BUSCO).")
+  DATA[!empty, , drop = FALSE]
+}
+```
+
+```{r process_sample for testing, include = FALSE}
+process_sample <- function(base_path, project_nr, TITLE) {
+    
+    paths_df <- mycoBinR::create_filepaths_df(base_path, project_nr, TITLE)
+    
+    #paths_df <- create_filepaths_df(base_path, project_nr, TITLE)
+
+    # Process and plot
+    #DATA <- process_and_plot(paths_df = paths_df)
+    
+    DATA <- mycoBinR::build_contig_table(paths_df = paths_df, api_key = API_KEY_GLOBAL)
+
+    DATA <- drop_empty_contigs(DATA)
+    
+    # Create plots
+    p1 <- create_plot(DATA, factor(DATA$clas), TITLE, legend_title="plot1_legend")
+    p2 <- create_plot(DATA, DATA$bc1, TITLE, legend_title="plot2_legend")
+    p3 <- create_plot(DATA, DATA$bc_combined, TITLE, legend_title="plot3_legend")
+        
+    p4 <- create_plot(DATA, DATA$tax_cons, TITLE, legend_title = "Cluster")
+    p4_legend <- get_legend(p4)
+
+    # Plot
+    print(p1); print(p2); print(p3)
+    
+    print(p3 + facet_wrap(~factor(clas),scales="free"))
+
+    print(p4 + theme(legend.position = "none"))
+    print(as_ggplot(p4_legend))
+    print(p4 + facet_wrap(~factor(tax_cons)) + theme(legend.position = "none"))
+
+    # Use DATA if provided; otherwise, fallback to foo for parse_telomeres
+    parse_data <- if (!missing(DATA)) DATA else foo
+    
+    # Parse telomeres
+    telomeres <- mycoBinR::parse_telomeres(DATA, paths_df)
+  
+    #telomeres <- parse_telomeres_old(DATA = parse_data, paths_df = paths_df)
+    
+    # Plot telomere classification vs GC/Coverage
+    # Plot needs more description
+    plot_data <- cbind(DATA, tel = telomeres$telcomp)
+    p_t <- ggplot(plot_data, aes(x = gc, y = log(cov), fill = DATA$summ_class)) +
+        geom_point(aes(size = len), alpha = 0.4, pch = 21) +
+        ggtitle(TITLE) +
+        theme_bw() +
+        facet_wrap(~factor(tel)) +
+        theme(legend.position = "none")
+    
+    print(p_t)
+    
+    # Ensure required BUSCO columns exist
+    required_cols <- c("Complete", "Fragmented", "Duplicated")
+    missing <- setdiff(required_cols, names(DATA))
+    if (length(missing)) {
+        DATA[missing] <- 0L
+    }
+
+    # If no data, print message instead of crashing
+    if (NROW(DATA) == 0) {
+        cat("No contigs available to display.\n")
+    } else {
+        # Safe computation of number of rows to show
+        counts_mat <- suppressWarnings(DATA[, required_cols])
+        busco_sum <- rowSums(counts_mat, na.rm = TRUE)
+        n_to_show <- sum(busco_sum != 0, na.rm = TRUE) + 10
+        n_to_show <- max(1, min(NROW(DATA), n_to_show))
+
+        DATA %>%
+            arrange(desc(Complete + Fragmented + Duplicated)) %>%
+            head(n_to_show) %>%
+            select(cov, len, gc, Complete, Duplicated, Fragmented,
+                   kingdom, phylum, class, genus) %>%
+            knitr::kable() %>%
+            print()
+    }
+
+     # Incorporate bam bubbles
+    DATA <- mycoBinR::incorporate_bam_bubbles(DATA = DATA, telomeres = telomeres, paths_df = paths_df)
+  
+    p5 <- p5 <- create_plot(DATA, DATA$tax_cons, TITLE)
+    p5_legend <- get_legend(p5)
+
+    print(p5 + theme(legend.position = "none"))
+    print(as_ggplot(p5_legend))
+    print(p5 + facet_wrap(~ factor(tax_cons)) + theme(legend.position = "none"))
+
+    # Check tables
+    print(knitr::kable(table(DATA$tax_cons, DATA$phylum)))
+    
+    # Export bed and fasta
+    mycoBinR::export_binned(DATA, paths_df = paths_df, SAMPLE = TITLE) 
+    #export_binned_old(DATA, paths_df = paths_df, SAMPLE = TITLE) 
+    
+    # Return objects
+    list(foo = DATA, telomeres = telomeres)
+    
+}
+```
+## Sample 001 – Bryoria fremontii
+
+
+This is by far the best library. The first run using busco suggests that 23 contigs belong to the target fungus, and have a coverage depth  of 158x.
+
+
+### Figures
+
+```{r main}
+result <- process_sample(base_path, project_nr, samples)
+```
+
