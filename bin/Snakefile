@@ -1,21 +1,20 @@
-#############################
-#   SAMPLE-NAMES & THREADS  #
-#############################
+###########################
+#   Changeable Variables  #
+###########################
 
 
 SAMPLES = ["001"]#, "002", "003", "004", "005", "006"]
-SAMPLE = config.get("sample", None)
 PROJECT_NR = "nr_"
 THREADS = 10
 API_KEY = ""
 DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"
 
 
-##################
-#   Directories  #
-##################
+######################################
+#   Fixed Variables and Directories  #
+######################################
 
-
+SAMPLE = config.get("sample", None)
 OUTPUT_DIR = "PacBio_output"
 INPUT_DIR = "PacBio_data"
 SINGULARITY_DIR = "bin/singularity"
