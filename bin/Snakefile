@@ -112,7 +112,6 @@ rule coverm_coverage:
         f"{SINGULARITY_DIR}/coverm.sif"
     shell:
         """
-        mkdir -p {output.coverage_dir}
         coverm contig \
             --single {input.fastq} \
             -r {input.assembly} \
