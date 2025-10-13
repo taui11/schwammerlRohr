@@ -114,7 +114,7 @@ rule coverm_coverage:
         """
         set -euo pipefail
         outdir="{OUTPUT_DIR}/coverm_output/{PROJECT_NR}{wildcards.sample}_mean_cov"
-        tmp="bin/tmp"
+        tmp="{OUTPUT_DIR}/tmp"
         mkdir -p "$outdir" "$tmp" "$outdir/bam_cache"
 
         export TMPDIR="$tmp"
