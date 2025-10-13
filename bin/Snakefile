@@ -148,7 +148,7 @@ rule busco_run:
               -c {threads} \
               -r \
               --out_path {OUTPUT_DIR}/busco_output/ \
-              --metaeuk
+              --metaeuk \
               --download_path bin/BUSCO_downloads
         """
 
