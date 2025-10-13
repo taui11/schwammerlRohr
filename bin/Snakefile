@@ -202,6 +202,9 @@ rule diamond_blastp:
             exit 0
         fi
 
+        export TMPDIR="bin/tmp"
+        mkdir -p "$TMPDIR"
+
         diamond blastp \
             --query "$PROT" \
             --db "{input.dmnd}" \
@@ -209,7 +212,7 @@ rule diamond_blastp:
             --outfmt 102 \
             --out "{output.m8}" \
             --include-lineage \
-            --fast &>> {log}
+            --fast
         """
 
 
