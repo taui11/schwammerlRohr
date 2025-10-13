@@ -174,7 +174,7 @@ rule diamond_blastp:
         dmnd = DIAMOND_DB
     output:
         outdir = directory(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots"),
-        m8     = f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots/{{sample}}.m8"
+        m8     = f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots/{PROJECT_NR}{{sample}}.m8"
     params:
         busco_dir = lambda w: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{w.sample}_busco"
     threads: THREADS
