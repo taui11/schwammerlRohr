@@ -4,18 +4,18 @@
 
 
 API_KEY = ""
-DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"
 
 
 ######################################
 #   Fixed Variables and Directories  #
 ######################################
 
-
+DIAMOND_DB = config.get("diamond_db", "path/to/DiamondDB.dmnd")
 PROJECT_NR = config.get("project_nr", "nr_") 
 SAMPLES = config.get("samples", "001").split(",")  
 SAMPLE = config.get("sample", None)
 THREADS = workflow.cores
+DIAMOND_DB_DIR = os.path.dirname(DIAMOND_DB)
 OUTPUT_DIR = "PacBio_output"
 INPUT_DIR = "PacBio_data"
 SINGULARITY_DIR = "bin/singularity"
@@ -178,8 +178,9 @@ rule diamond_blastp:
     params:
         busco_dir = lambda w: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{w.sample}_busco"
     threads: THREADS
-    container:
+    singularity:
         f"{SINGULARITY_DIR}/diamond.sif"  
+        args=f"--bind {DIAMOND_DB_DIR}"
     shell:
         r"""
         set -euo pipefail

@@ -61,19 +61,25 @@ to match your project setup:
 
 ```python
 API_KEY = ""        # NCBI-API key for mycoBinR report generation
-DIAMOND_DB = "/path/to/the/DiamondDB/nr_diamond.dmnd"  # Path to DIAMOND database
 ```
 
 ### 5. Launch the pipeline
 Following example uses `nr_001.hifireads.fastq.gz`, `nr_002.hifireads.fastq.gz`, `nr_003.hifireads.fastq.gz` as input files.
 ```bash
-snakemake \
-  --cores 20 \
-  --snakefile ./bin/Snakefile \
-  --use-singularity \
-  --config project_nr=nr_ samples=001,002,003
+./run_pipeline.sh \
+  --cores 16 \
+  --project_nr test_ \
+  --samples 001,002,003 \
+  --db /path/to/DiamondDB.dmnd
 ```
-If there are problems running snakemake try to activate a conda environment for snakemake.
+
+```markdown
+- `--cores` — number of CPU cores to use  
+- `--project_nr` — project identifier prefix  
+- `--samples` — comma-separated sample IDs (no spaces)  
+- `--db` — absolute path to the DIAMOND database (`.dmnd` file)
+```
+If there are problems running the snakemake pipeline try to activate a conda environment for snakemake.
 
 ---
 
@@ -85,7 +91,8 @@ schwammerlRohr/
 |   ├── definitions/      # Singularity definitions
 |   ├── report.rmd        # Rmd file for the final report (using mycoBinR)
 |   ├── setup.sh          # Setup file
-|   └── Snakefile         # Snakefile for runing the pipeline
+|   ├── Snakefile         # Snakefile for runing the pipeline
+|   └── tmp               # temporary folder used for setup and pipeline
 ├── PacBio_data/          # Input data
 ├── PacBio_output/        # Pipeline output
 └── README.md             # This file
