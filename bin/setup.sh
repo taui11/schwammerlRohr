@@ -44,10 +44,9 @@ DIAMOND_SIF="$SINGULARITY_DIR/diamond.sif"
 REPORT_DEF="$DEF_DIR/report.def"
 REPORT_SIF="$SINGULARITY_DIR/report.sif"
 
-# Get paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# <- this script is in repo/bin/, so the repo root is one level up
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Where is this repo?
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # .../repo/bin
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"                   # .../repo
 
 # Create directories first (so realpath works)
 for dir in "${required_dirs[@]}"; do
@@ -58,13 +57,18 @@ for dir in "${required_dirs[@]}"; do
 done
 echo "Directory creation complete."
 
-# Absolute paths for tmp & cache (they already include 'bin/')
+# Absolute paths for tmp & cache (your vars already include 'bin/')
 TMP_ABS="$(realpath "$REPO_ROOT/$TMP_DIR")"
 CACHE_ABS="$(realpath "$REPO_ROOT/$CACHE_DIR")"
 
 # --------------------------
 # Host-side build/pull config
 # --------------------------
+export TMPDIR="$TMP_ABS"
+export TEMP="$TMP_ABS"
+export TMP="$TMP_ABS"
+export SINGULARITY_WORKDIR="$TMP_ABS"
+export APPTAINER_WORKDIR="$TMP_ABS"
 export SINGULARITY_TMPDIR="$TMP_ABS"
 export APPTAINER_TMPDIR="$TMP_ABS"
 export SINGULARITY_CACHEDIR="$CACHE_ABS"
@@ -88,32 +92,21 @@ else
 fi
 echo "Bind path: $SINGULARITY_BINDPATH"
 
-# Tell containers (at runtime) to use /opt/tmp for installs & temp
-# Use SINGULARITYENV_* so they are visible inside the container.
+# Inside container, write everything under /opt/tmp
 export SINGULARITYENV_TMPDIR="/opt/tmp"
 export SINGULARITYENV_TMP="/opt/tmp"
 export SINGULARITYENV_XDG_CACHE_HOME="/opt/tmp/.cache"
-
-# Python: caches & user installs
 export SINGULARITYENV_PIP_CACHE_DIR="/opt/tmp/pip-cache"
 export SINGULARITYENV_PIP_TARGET="/opt/tmp/pip"
 export SINGULARITYENV_PYTHONPYCACHEPREFIX="/opt/tmp/pyc"
-
-# R: user libs & temp
 export SINGULARITYENV_R_LIBS_USER="/opt/tmp/Rlib"
 export SINGULARITYENV_R_TMPDIR="/opt/tmp/Rtmp"
-# If you use renv:
 export SINGULARITYENV_RENV_PATHS_CACHE="/opt/tmp/renv-cache"
 
-# Ensure the directories exist on host (they’ll appear inside container via bind)
+# Ensure host dirs exist (so the bind has targets)
 mkdir -p \
-  "$TMP_ABS/.cache" \
-  "$TMP_ABS/pip-cache" \
-  "$TMP_ABS/pip" \
-  "$TMP_ABS/pyc" \
-  "$TMP_ABS/Rlib" \
-  "$TMP_ABS/Rtmp" \
-  "$TMP_ABS/renv-cache"
+  "$TMP_ABS/.cache" "$TMP_ABS/pip-cache" "$TMP_ABS/pip" "$TMP_ABS/pyc" \
+  "$TMP_ABS/Rlib" "$TMP_ABS/Rtmp" "$TMP_ABS/renv-cache"
 
 # --------------------------
 # Build/pull SIFs
