@@ -4,9 +4,11 @@ INPUT_DIR="PacBio_data"
 OUTPUT_DIR="PacBio_output"
 DEF_DIR="bin/definitions"
 SINGULARITY_DIR="bin/singularity"
+TMP_DIR="bin/tmp"
 
 required_dirs=(
     "$SINGULARITY_DIR"
+    "$TMP_DIR"
     "$INPUT_DIR"
     "$OUTPUT_DIR/longqc_output"
     "$OUTPUT_DIR/flye_output"
@@ -38,6 +40,9 @@ DIAMOND_SIF="$SINGULARITY_DIR/diamond.sif"
 
 REPORT_DEF="$DEF_DIR/report.def"
 REPORT_SIF="$SINGULARITY_DIR/report.sif"
+
+export SINGULARITY_TMPDIR="$TMP_DIR"
+export APPTAINER_TMPDIR="$TMP_DIR"
 
 
 # Create Directories if not there
