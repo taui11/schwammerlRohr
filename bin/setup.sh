@@ -64,7 +64,7 @@ echo "Using Singularity tmp:   $SINGULARITY_TMPDIR"
 echo "Using Singularity cache: $SINGULARITY_CACHEDIR"
 
 # Extra build args (some versions prefer explicit flags)
-EXTRA_BUILD_ARGS=(--tmpdir "$TMP_ABS" --cache-dir "$CACHE_ABS")
+EXTRA_BUILD_ARGS=(--tmpdir "$TMP_ABS")
 
 # Create Directories if not there
 for dir in "${required_dirs[@]}"; do
