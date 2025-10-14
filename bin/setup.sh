@@ -1,5 +1,7 @@
 #!/bin/bash
+set -euo pipefail
 
+# --- Paths relative to repo root ---
 INPUT_DIR="PacBio_data"
 OUTPUT_DIR="PacBio_output"
 DEF_DIR="bin/definitions"
@@ -8,18 +10,17 @@ TMP_DIR="bin/tmp"
 CACHE_DIR="bin/cache"
 
 required_dirs=(
-    "$SINGULARITY_DIR"
-    "$TMP_DIR"
-    "$CACHE_DIR"
-    "$INPUT_DIR"
-    "$OUTPUT_DIR/longqc_output"
-    "$OUTPUT_DIR/flye_output"
-    "$OUTPUT_DIR/coverm_output"
-    "$OUTPUT_DIR/busco_output"
-    "$OUTPUT_DIR/diamond_output"
-    "$OUTPUT_DIR/telfinder_output"
-    "$OUTPUT_DIR/reports"
-
+  "$SINGULARITY_DIR"
+  "$TMP_DIR"
+  "$CACHE_DIR"
+  "$INPUT_DIR"
+  "$OUTPUT_DIR/longqc_output"
+  "$OUTPUT_DIR/flye_output"
+  "$OUTPUT_DIR/coverm_output"
+  "$OUTPUT_DIR/busco_output"
+  "$OUTPUT_DIR/diamond_output"
+  "$OUTPUT_DIR/telfinder_output"
+  "$OUTPUT_DIR/reports"
 )
 
 LONGQC_DEF="$DEF_DIR/longqc.def"
@@ -43,102 +44,109 @@ DIAMOND_SIF="$SINGULARITY_DIR/diamond.sif"
 REPORT_DEF="$DEF_DIR/report.def"
 REPORT_SIF="$SINGULARITY_DIR/report.sif"
 
-# Get the directory of the setup script (so it works even if run from elsewhere)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get repo root (this file can be run from anywhere)
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Define temp/cache paths relative to repo
-TMP_REL="$SCRIPT_DIR/tmp"
-CACHE_REL="$SCRIPT_DIR/cache"
+# Create directories first (so realpath works)
+for dir in "${required_dirs[@]}"; do
+  if [ ! -d "$REPO_ROOT/$dir" ]; then
+    echo "Creating: $dir"
+    mkdir -p "$REPO_ROOT/$dir"
+  fi
+done
+echo "Directory creation complete."
 
-# Convert to absolute paths (required by Singularity)
-TMP_ABS="$(realpath "$TMP_REL")"
-CACHE_ABS="$(realpath "$CACHE_REL")"
+# Absolute paths for tmp & cache
+TMP_ABS="$(realpath "$REPO_ROOT/$TMP_DIR")"
+CACHE_ABS="$(realpath "$REPO_ROOT/$CACHE_DIR")"
 
-# Export for Singularity/Apptainer
+# --------------------------
+# Host-side build/pull config
+# --------------------------
 export SINGULARITY_TMPDIR="$TMP_ABS"
 export APPTAINER_TMPDIR="$TMP_ABS"
 export SINGULARITY_CACHEDIR="$CACHE_ABS"
 export APPTAINER_CACHEDIR="$CACHE_ABS"
+echo "Singularity tmp:   $SINGULARITY_TMPDIR"
+echo "Singularity cache: $SINGULARITY_CACHEDIR"
 
-echo "Using Singularity tmp:   $SINGULARITY_TMPDIR"
-echo "Using Singularity cache: $SINGULARITY_CACHEDIR"
-
-# Extra build args (some versions prefer explicit flags)
+# Some versions accept explicit --tmpdir for build/pull
 EXTRA_BUILD_ARGS=(--tmpdir "$TMP_ABS")
 
-# Create Directories if not there
-for dir in "${required_dirs[@]}"; do
-    if [ ! -d "$dir" ]; then
-        echo "Creating Directories: $dir"
-        mkdir -p "$dir"
-    else
-        echo "Directory already exists: $dir"
-    fi
-done
-
-echo "Directory creation complete!"
-
-# Creating Singularity files
-
-# LongQC
-if [ ! -f "$LONGQC_SIF" ]; then
-    echo "Building LongQC Singularity container..."
-    singularity build "${EXTRA_BUILD_ARGS[@]}" "$LONGQC_SIF" "$LONGQC_DEF"
+# --------------------------------
+# Runtime binds + language caches
+# --------------------------------
+# Bind host ./bin/tmp into container at /opt/tmp
+export SINGULARITY_BINDPATH="${SINGULARITY_BINDPATH:-}"
+BIND_SPEC="$TMP_ABS:/opt/tmp"
+if [[ -n "$SINGULARITY_BINDPATH" ]]; then
+  export SINGULARITY_BINDPATH="$BIND_SPEC,$SINGULARITY_BINDPATH"
 else
-    echo "LongQC Singularity container already exists: $LONGQC_SIF"
+  export SINGULARITY_BINDPATH="$BIND_SPEC"
+fi
+echo "Bind path: $SINGULARITY_BINDPATH"
+
+# Tell containers (at runtime) to use /opt/tmp for installs & temp
+# Use SINGULARITYENV_* so they are visible inside the container.
+export SINGULARITYENV_TMPDIR="/opt/tmp"
+export SINGULARITYENV_TMP="/opt/tmp"
+export SINGULARITYENV_XDG_CACHE_HOME="/opt/tmp/.cache"
+
+# Python: caches & user installs
+export SINGULARITYENV_PIP_CACHE_DIR="/opt/tmp/pip-cache"
+export SINGULARITYENV_PIP_TARGET="/opt/tmp/pip"
+export SINGULARITYENV_PYTHONPYCACHEPREFIX="/opt/tmp/pyc"
+
+# R: user libs & temp
+export SINGULARITYENV_R_LIBS_USER="/opt/tmp/Rlib"
+export SINGULARITYENV_R_TMPDIR="/opt/tmp/Rtmp"
+# If you use renv:
+export SINGULARITYENV_RENV_PATHS_CACHE="/opt/tmp/renv-cache"
+
+# Ensure the directories exist on host (they’ll appear inside container via bind)
+mkdir -p \
+  "$TMP_ABS/.cache" \
+  "$TMP_ABS/pip-cache" \
+  "$TMP_ABS/pip" \
+  "$TMP_ABS/pyc" \
+  "$TMP_ABS/Rlib" \
+  "$TMP_ABS/Rtmp" \
+  "$TMP_ABS/renv-cache"
+
+# --------------------------
+# Build/pull SIFs
+# --------------------------
+build_if_missing () {
+  local sif="$1" def="$2" label="$3"
+  if [ ! -f "$REPO_ROOT/$sif" ]; then
+    echo "Building $label..."
+    singularity build "${EXTRA_BUILD_ARGS[@]}" "$REPO_ROOT/$sif" "$REPO_ROOT/$def"
+  else
+    echo "$label already exists: $sif"
+  fi
+}
+
+pull_if_missing () {
+  local sif="$1" ref="$2" label="$3"
+  if [ ! -f "$REPO_ROOT/$sif" ]; then
+    echo "Pulling $label..."
+    singularity pull "${EXTRA_BUILD_ARGS[@]}" "$REPO_ROOT/$sif" "$ref"
+  else
+    echo "$label already exists: $sif"
+  fi
+}
+
+build_if_missing "$LONGQC_SIF" "$LONGQC_DEF" "LongQC"
+pull_if_missing  "$BUSCO_IMAGE" "$BUSCO_DOCKER" "BUSCO"
+build_if_missing "$TELFINDER_SIF" "$TELFINDER_DEF" "TelFinder"
+build_if_missing "$FLYE_SIF"     "$FLYE_DEF"     "Flye"
+build_if_missing "$COVERM_SIF"   "$COVERM_DEF"   "CoverM"
+build_if_missing "$DIAMOND_SIF"  "$DIAMOND_DEF"  "Diamond"
+
+if [ -f "$REPO_ROOT/$REPORT_DEF" ]; then
+  build_if_missing "$REPORT_SIF" "$REPORT_DEF" "mycoBinR report"
+else
+  echo "Report def not found (skip): $REPORT_DEF"
 fi
 
-# Busco
-if [ ! -f "$BUSCO_IMAGE" ]; then
-    echo "Pulling BUSCO Singularity image from Docker Hub..."
-    singularity pull "${EXTRA_BUILD_ARGS[@]}" "$BUSCO_IMAGE" "$BUSCO_DOCKER"
-else
-    echo "BUSCO Singularity image already exists: $BUSCO_IMAGE"
-fi
-
-# Telfinder
-if [ ! -f "$TELFINDER_SIF" ]; then
-    echo "Building TelFinder Singularity container..."
-    singularity build "${EXTRA_BUILD_ARGS[@]}" "$TELFINDER_SIF" "$TELFINDER_DEF"
-else
-    echo "TelFinder Singularity container already exists: $TELFINDER_SIF"
-fi
-
-# Flye
-if [ ! -f "$FLYE_SIF" ]; then
-    echo "Building Flye Singularity container..."
-    singularity build "${EXTRA_BUILD_ARGS[@]}" "$FLYE_SIF" "$FLYE_DEF"
-else
-    echo "Flye Singularity container already exists: $FLYE_SIF"
-fi
-
-# CoverM
-if [ ! -f "$COVERM_SIF" ]; then
-    echo "Building CoverM Singularity container..."
-    singularity build "${EXTRA_BUILD_ARGS[@]}" "$COVERM_SIF" "$COVERM_DEF"
-else
-    echo "CoverM Singularity container already exists: $COVERM_SIF"
-fi
-
-# Diamond
-if [ ! -f "$DIAMOND_SIF" ]; then
-    echo "Building Diamond Singularity container from $DIAMOND_DEF..."
-    singularity build "${EXTRA_BUILD_ARGS[@]}" "$DIAMOND_SIF" "$DIAMOND_DEF"
-else
-    echo "Diamond Singularity container already exists: $DIAMOND_SIF"
-fi
-
-if [ -f "$REPORT_DEF" ]; then
-    if [ ! -f "$REPORT_SIF" ]; then
-        echo "Building mycoBinR Singularity container..."
-        singularity build "${EXTRA_BUILD_ARGS[@]}" "$REPORT_SIF" "$REPORT_DEF"
-        echo "Reporting image built: singularity/report.sif"
-    else
-        echo "mycoBinR Singularity container already exists: $REPORT_SIF"
-    fi
-else
-    echo "mycoBinR def not found (skip): $REPORT_DEF"
-fi
-
-echo "Setup complete!"
-
+echo "Setup complete."
