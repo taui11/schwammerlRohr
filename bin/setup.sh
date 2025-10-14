@@ -41,9 +41,27 @@ DIAMOND_SIF="$SINGULARITY_DIR/diamond.sif"
 REPORT_DEF="$DEF_DIR/report.def"
 REPORT_SIF="$SINGULARITY_DIR/report.sif"
 
-export SINGULARITY_TMPDIR="$TMP_DIR"
-export APPTAINER_TMPDIR="$TMP_DIR"
+# Get the directory of the setup script (so it works even if run from elsewhere)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Define temp/cache paths relative to repo
+TMP_REL="$SCRIPT_DIR/tmp"
+CACHE_REL="$SCRIPT_DIR/tmp"
+
+# Create them if missing
+mkdir -p "$TMP_REL" "$CACHE_REL"
+
+# Convert to absolute paths (required by Singularity)
+TMP_ABS="$(realpath "$TMP_REL")"
+CACHE_ABS="$(realpath "$CACHE_REL")"
+
+# Export for Singularity/Apptainer
+export SINGULARITY_TMPDIR="$TMP_ABS"
+export APPTAINER_TMPDIR="$TMP_ABS"
+export SINGULARITY_CACHEDIR="$CACHE_ABS"
+
+echo "Using Singularity tmp:   $SINGULARITY_TMPDIR"
+echo "Using Singularity cache: $SINGULARITY_CACHEDIR"
 
 # Create Directories if not there
 for dir in "${required_dirs[@]}"; do
