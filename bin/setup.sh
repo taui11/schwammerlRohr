@@ -48,9 +48,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP_REL="$SCRIPT_DIR/tmp"
 CACHE_REL="$SCRIPT_DIR/tmp"
 
-# Create them if missing
-mkdir -p "$TMP_REL" "$CACHE_REL"
-
 # Convert to absolute paths (required by Singularity)
 TMP_ABS="$(realpath "$TMP_REL")"
 CACHE_ABS="$(realpath "$CACHE_REL")"
