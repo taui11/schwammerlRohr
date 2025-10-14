@@ -44,8 +44,10 @@ DIAMOND_SIF="$SINGULARITY_DIR/diamond.sif"
 REPORT_DEF="$DEF_DIR/report.def"
 REPORT_SIF="$SINGULARITY_DIR/report.sif"
 
-# Get repo root (this file can be run from anywhere)
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get paths
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# <- this script is in repo/bin/, so the repo root is one level up
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Create directories first (so realpath works)
 for dir in "${required_dirs[@]}"; do
@@ -56,7 +58,7 @@ for dir in "${required_dirs[@]}"; do
 done
 echo "Directory creation complete."
 
-# Absolute paths for tmp & cache
+# Absolute paths for tmp & cache (they already include 'bin/')
 TMP_ABS="$(realpath "$REPO_ROOT/$TMP_DIR")"
 CACHE_ABS="$(realpath "$REPO_ROOT/$CACHE_DIR")"
 
