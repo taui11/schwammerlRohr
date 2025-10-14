@@ -66,6 +66,8 @@ API_KEY = ""        # NCBI-API key for mycoBinR report generation
 ### 5. Launch the pipeline
 Following example uses `nr_001.hifireads.fastq.gz`, `nr_002.hifireads.fastq.gz`, `nr_003.hifireads.fastq.gz` as input files.
 ```bash
+chmod +x run_pipeline.sh # make the file executable
+
 ./run_pipeline.sh \
   --cores 16 \
   --project_nr test_ \
