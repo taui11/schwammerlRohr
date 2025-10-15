@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# ============================================
+# Wrapper for Singularity/Apptainer
+# Forces all temporary & cache directories
+# into ./bin/tmp and ./bin/cache (under repo root)
+# ============================================
+
+set -euo pipefail
+
+# --- Locate repo root ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# --- Define local tmp and cache directories ---
+TMP_ABS="$REPO_ROOT/bin/tmp"
+CACHE_ABS="$REPO_ROOT/bin/cache"
+mkdir -p "$TMP_ABS" "$CACHE_ABS"
+
+# --- Pick Singularity or Apptainer binary ---
+if command -v apptainer >/dev/null 2>&1; then
+  BIN=apptainer
+else
+  BIN=singularity
+fi
+
+# --- Run the command with forced temp/cache paths ---
+APPTAINER_TMPDIR="$TMP_ABS" \
+SINGULARITY_TMPDIR="$TMP_ABS" \
+TMPDIR="$TMP_ABS" TMP="$TMP_ABS" TEMP="$TMP_ABS" \
+APPTAINER_CACHEDIR="$CACHE_ABS" \
+SINGULARITY_CACHEDIR="$CACHE_ABS" \
+"$BIN" "$@"
