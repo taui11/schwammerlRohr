@@ -12,7 +12,7 @@ API_KEY = ""
 
 DIAMOND_DB = config.get("diamond_db", "path/to/DiamondDB.dmnd")
 PROJECT_NR = config.get("project_nr", "nr_") 
-SAMPLES = config.get("samples", "001").split(",")  
+SAMPLES = config.get("samples", "001")  
 SAMPLE = config.get("sample", None)
 THREADS = workflow.cores
 DIAMOND_DB_DIR = os.path.dirname(DIAMOND_DB)

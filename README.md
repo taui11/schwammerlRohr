@@ -71,7 +71,7 @@ chmod +x run_pipeline.sh # make the file executable
 ./run_pipeline.sh \
   --cores 16 \
   --project_nr test_ \
-  --samples 001,002,003 \
+  --samples [001,002,003] \
   --db /path/to/DiamondDB.dmnd
 ```
 
