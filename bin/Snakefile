@@ -20,6 +20,25 @@ OUTPUT_DIR = "PacBio_output"
 INPUT_DIR = "PacBio_data"
 SINGULARITY_DIR = "bin/singularity"
 
+#########################
+#   TMP-dir relocation  #
+#########################
+
+import os
+
+# Resolve the absolute path to your bin/tmp folder
+TMPDIR = os.path.abspath("bin/tmp")
+
+# Export for all rules (tools like R, Python, etc. respect TMPDIR)
+os.environ["TMPDIR"] = TMPDIR
+os.environ["XDG_CACHE_HOME"] = TMPDIR
+os.environ["PYTHONPYCACHEPREFIX"] = os.path.join(TMPDIR, "pycache")
+os.environ["R_LIBS_USER"] = os.path.join(TMPDIR, "Rlibs")
+os.environ["R_LIBS_SITE"] = os.path.join(TMPDIR, "Rlibs")
+
+# Optional: global default for Snakemake wrappers that use {resources.tmpdir}
+default_resources:
+    tmpdir=TMPDIR
 
 #############
 #   RULES   #
@@ -73,6 +92,8 @@ rule longqc:
     threads: THREADS
     singularity:
         f"{SINGULARITY_DIR}/longqc.sif"
+    resources:
+        tmpdir=TMPDIR
     shell:
         """
         python /root/LongQC/longQC.py sampleqc \
@@ -92,6 +113,8 @@ rule flye_assembly:
     threads: THREADS
     singularity:
         f"{SINGULARITY_DIR}/flye.sif"
+    resources:
+        tmpdir=TMPDIR
     shell:
         """
         flye --pacbio-hifi {input.fastq} \
@@ -110,6 +133,8 @@ rule coverm_coverage:
     threads: THREADS
     singularity:
         f"{SINGULARITY_DIR}/coverm.sif"
+    resources:
+        tmpdir=TMPDIR
     shell:
         """
         set -euo pipefail
@@ -139,6 +164,8 @@ rule busco_run:
     threads: THREADS
     singularity:
         f"{SINGULARITY_DIR}/busco.sif"
+    resources:
+        tmpdir=TMPDIR
     shell:
         """
         busco -i {input.assembly} \
@@ -161,6 +188,8 @@ rule telfinder:
     threads: THREADS
     singularity:
         f"{SINGULARITY_DIR}/telfinder.sif"
+    resources:
+        tmpdir=TMPDIR
     shell:
         """
         mkdir -p {output.telomeres_dir}
@@ -181,6 +210,8 @@ rule diamond_blastp:
     singularity:
         f"{SINGULARITY_DIR}/diamond.sif"  
         args=f"--bind {DIAMOND_DB_DIR}"
+    resources:
+        tmpdir=TMPDIR
     shell:
         r"""
         set -euo pipefail
@@ -235,6 +266,8 @@ rule render_report:
     threads: THREADS
     container:
         f"{SINGULARITY_DIR}/report.sif"
+    resources:
+        tmpdir=TMPDIR
     shell:
         r"""
         set -eu

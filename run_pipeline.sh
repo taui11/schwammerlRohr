@@ -28,4 +28,5 @@ snakemake \
   --cores "$CORES" \
   --snakefile ./bin/Snakefile \
   --use-singularity \
+  --singularity-args "--bind $(realpath bin/tmp):/opt/tmp --env TMPDIR=/opt/tmp"\
   --config project_nr="$PROJECT_NR" samples="$SAMPLES" diamond_db="$DIAMOND_DB"
