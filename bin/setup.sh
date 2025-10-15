@@ -77,7 +77,7 @@ echo "Singularity tmp:   $SINGULARITY_TMPDIR"
 echo "Singularity cache: $SINGULARITY_CACHEDIR"
 
 # Some versions accept explicit --tmpdir for build/pull
-EXTRA_BUILD_ARGS=(--tmpdir "$TMP_ABS")
+EXTRA_BUILD_ARGS=(--tmpdir "$TMP_ABS" --workdir "$TMP_ABS")
 
 # --------------------------------
 # Runtime binds + language caches
