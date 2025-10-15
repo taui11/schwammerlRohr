@@ -36,10 +36,6 @@ os.environ["PYTHONPYCACHEPREFIX"] = os.path.join(TMPDIR, "pycache")
 os.environ["R_LIBS_USER"] = os.path.join(TMPDIR, "Rlibs")
 os.environ["R_LIBS_SITE"] = os.path.join(TMPDIR, "Rlibs")
 
-# Optional: global default for Snakemake wrappers that use {resources.tmpdir}
-default_resources:
-    tmpdir=TMPDIR
-
 #############
 #   RULES   #
 #############
