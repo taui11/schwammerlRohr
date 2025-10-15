@@ -111,7 +111,7 @@ build_if_missing () {
   local sif="$1" def="$2" label="$3"
   if [ ! -f "$REPO_ROOT/$sif" ]; then
     echo "Building $label..."
-    singularity build "${EXTRA_BUILD_ARGS[@]}" "$REPO_ROOT/$sif" "$REPO_ROOT/$def"
+    "$REPO_ROOT/bin/sing" build "${EXTRA_BUILD_ARGS[@]}" "$REPO_ROOT/$sif" "$REPO_ROOT/$def"
   else
     echo "$label already exists: $sif"
   fi
@@ -121,7 +121,7 @@ pull_if_missing () {
   local sif="$1" ref="$2" label="$3"
   if [ ! -f "$REPO_ROOT/$sif" ]; then
     echo "Pulling $label..."
-    singularity pull "${EXTRA_BUILD_ARGS[@]}" "$REPO_ROOT/$sif" "$ref"
+    "$REPO_ROOT/bin/sing" pull "${EXTRA_BUILD_ARGS[@]}" "$REPO_ROOT/$sif" "$ref"
   else
     echo "$label already exists: $sif"
   fi
