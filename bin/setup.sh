@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -u
 
 # --- Paths relative to repo root ---
 INPUT_DIR="PacBio_data"
