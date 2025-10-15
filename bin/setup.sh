@@ -101,6 +101,9 @@ mkdir -p "$TMP_ABS" "$CACHE_ABS" \
          "$TMP_ABS/Rlib" "$TMP_ABS/Rtmp" "$TMP_ABS/renv-cache"
 
 
+EXTRA_BUILD_ARGS=(--tmpdir "$TMP_ABS" --workdir "$TMP_ABS")
+
+
 # --------------------------
 # Build/pull SIFs
 # --------------------------
