@@ -208,7 +208,7 @@ rule diamond_blastp:
         busco_dir = lambda w: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{w.sample}_busco"
     threads: THREADS
     singularity:
-        f"{SINGULARITY_DIR}/diamond.sif"  
+        f"{SINGULARITY_DIR}/diamond.sif", 
         args=f"--bind {DIAMOND_DB_DIR}"
     resources:
         tmpdir=TMPDIR
