@@ -21,7 +21,7 @@ all_params <- params
 libs <- c("ape", "Biostrings", "clue", "cowplot", "dplyr", "FastaUtils",
            "ggplot2", "ggpubr", "htmlTable", "igraph", "jsonlite", "knitr",
           "mclust", "parallel", "purrr", "reshape2", "rjson", "Rsamtools", "stargazer",
-          "taxize", "taxonomizr", "tibble", "tidyr") #"ggraph",
+          "taxize", "taxonomizr", "tibble", "tidyr", "mycoBinR") #"ggraph",
 
 lapply(libs, library, character.only = TRUE)
 
