@@ -2,7 +2,8 @@ Bootstrap: docker
 From: ubuntu:22.04
 
 %post
-    apt-get update && apt-get install -y wget unzip
+    apt-get update && apt-get install -y wget unzip  ca-certificates
+    update-ca-certificates
 
     # Download Diamond binary and unpack
     wget https://github.com/bbuchfink/diamond/releases/download/v2.1.12/diamond-linux64.tar.gz -O /tmp/diamond.tar.gz
