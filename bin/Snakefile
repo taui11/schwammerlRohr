@@ -161,11 +161,11 @@ rule telfinder:
 
 rule diamond_blastp:
     input:
-        ".inputs_ok",   
+        ".inputs_ok",
         dmnd = DIAMOND_DB
     output:
         outdir = directory(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots"),
-        m8     = f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots/{PROJECT_NR}{{sample}}.m8"
+        tax     = f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots/{PROJECT_NR}{{sample}}_taxprot"
     params:
         busco_dir = lambda w: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{w.sample}_busco"
     threads: THREADS
@@ -176,35 +176,25 @@ rule diamond_blastp:
         set -euo pipefail
         mkdir -p {output.outdir}
 
-        MINIPROT_DIR="{params.busco_dir}/run_ascomycota_odb12/miniprot_output/translated_proteins"
         METAEUK_FILE="{params.busco_dir}/run_ascomycota_odb12/metaeuk_output/combined_pred_proteins.fas"
 
-        # Pick proteins source and create a unified FASTA
-        if [ -d "$MINIPROT_DIR" ] && ls "$MINIPROT_DIR"/*.faa >/dev/null 2>&1; then
-            PROT="{output.outdir}/{wildcards.sample}_miniprot.faa"
-            cat "$MINIPROT_DIR"/*.faa > "$PROT"
-        elif [ -f "$METAEUK_FILE" ]; then
+        if [ -f "$METAEUK_FILE" ]; then
             PROT="{output.outdir}/{wildcards.sample}_metaeuk.faa"
             cp "$METAEUK_FILE" "$PROT"
         else
-            echo "No proteins found for BUSCO in sample {wildcards.sample}" >&2
-            # Create empty output to keep DAG moving, or 'exit 1' to fail hard:
-            : > "{output.m8}"
-            exit 0
+            echo "MetaEuk proteins not found for sample {wildcards.sample}: $METAEUK_FILE" >&2
+            exit 1
         fi
-
-        export TMPDIR="bin/tmp"
-        mkdir -p "$TMPDIR"
 
         diamond blastp \
             --query "$PROT" \
             --db "{input.dmnd}" \
             --threads {threads} \
             --outfmt 102 \
-            --out "{output.m8}" \
             --include-lineage \
-            --fast
+            --out "{output.tax}"
         """
+
 
 
 rule render_report:
