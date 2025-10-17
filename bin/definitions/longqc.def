@@ -13,6 +13,8 @@ From: continuumio/miniconda3
     apt-get update
     apt-get upgrade -y
     apt-get install -y git build-essential libc6-dev zlib1g-dev
+    apt-get install -y ca-certificates
+    update-ca-certificates
     apt-get clean
     apt-get purge -y
 
@@ -42,3 +44,4 @@ From: continuumio/miniconda3
 
 %runscript
     exec longQC.py "$@"
+
