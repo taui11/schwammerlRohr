@@ -111,14 +111,6 @@ rule coverm_coverage:
         f"{SINGULARITY_DIR}/coverm.sif"
     shell:
         """
-        set -euo pipefail
-        outdir="{OUTPUT_DIR}/coverm_output/{PROJECT_NR}{wildcards.sample}_mean_cov"
-        tmp="{OUTPUT_DIR}/tmp"
-        mkdir -p "$outdir" "$tmp" "$outdir/bam_cache"
-
-        export TMPDIR="$tmp"
-        export SAMTOOLS_TMPDIR="$tmp"
-
         coverm contig \
             --single {input.fastq} \
             -r {input.assembly} \
