@@ -111,6 +111,13 @@ rule coverm_coverage:
         f"{SINGULARITY_DIR}/coverm.sif"
     shell:
         """
+        set -euo pipefail
+
+        OUTDIR="PacBio_output/coverm_output/{PROJECT_NR}{wildcards.sample}_mean_cov"
+        CACHE="$OUTDIR/bam_cache"
+
+        mkdir -p "$OUTDIR" "$CACHE"
+
         coverm contig \
             --single {input.fastq} \
             -r {input.assembly} \
