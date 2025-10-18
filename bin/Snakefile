@@ -222,6 +222,7 @@ rule render_report:
     threads: THREADS
     container:
         f"{SINGULARITY_DIR}/report.sif"
+    always_run: True
     shell:
         r"""
         set -eu
