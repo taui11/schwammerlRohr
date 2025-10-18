@@ -219,10 +219,11 @@ rule render_report:
         RMD_SRC         = "bin/report.rmd"
     output:
         html = f"{OUTPUT_DIR}/reports/{PROJECT_NR}{{sample}}_report.html"
+    params:
+        run_id = str(int(time.time()))
     threads: THREADS
     container:
         f"{SINGULARITY_DIR}/report.sif"
-    always_run: True
     shell:
         r"""
         set -eu
@@ -238,6 +239,7 @@ rule render_report:
                 base_path  = '$PWD/{OUTPUT_DIR}', \
                 output_dir = '$PWD/{OUTPUT_DIR}', \
                 # tip: prefer env var; but leaving as-is if you want:
-                api_key    = '{API_KEY}' \
+                api_key    = '{API_KEY}', \
+                run_id = '{params.run_id}' \
             ))"
         """
