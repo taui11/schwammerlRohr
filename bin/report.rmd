@@ -87,7 +87,7 @@ drop_empty_contigs <- function(DATA) {
 
 > **Project:** `r params$project_nr`  
 > **Sample:** `r params$sample`  
-> **Rendered:** `r format(time)`  
+> **Rendered:** `r format(as.POSIXct(as.numeric(params$run_id), origin="1970-01-01", tz="Europe/Vienna"), "%Y-%m-%d %H:%M:%S %Z")`  
 > **Package:** mycoBinR `r if (requireNamespace("mycoBinR", quietly=TRUE)) as.character(packageVersion("mycoBinR")) else "not installed"`  
 > **Pipeline:** schwammerlRohr
 
