@@ -104,7 +104,7 @@ The quality of the long-read sequencing libraries was evaluated using *LongreadQ
 # Read and process JSON files for each sample
 json_list <- lapply(samples, function(i) {
     json_file <- file.path(base_path, "longqc_output", paste0(project_nr, i, "_quality"), "QC_vals_longQC_sampleqc.json")
-    json_data <- jsonlite::fromJSON(file = json_file)
+    json_data <- jsonlite::fromJSON(json_file)
     data.frame(json_data)[1, ]  # extract first row as data.frame
 })
 
