@@ -14,6 +14,7 @@ params:
 ---
 
 ```{r setup, include=FALSE}
+
 # Alle Parameter aus Snakemake übernehmen
 all_params <- params
 
@@ -21,7 +22,7 @@ all_params <- params
 libs <- c("ape", "Biostrings", "clue", "cowplot", "dplyr", "FastaUtils",
            "ggplot2", "ggpubr", "htmlTable", "igraph", "jsonlite", "knitr",
           "mclust", "parallel", "purrr", "reshape2", "rjson", "Rsamtools", "stargazer",
-          "taxize", "taxonomizr", "tibble", "tidyr", "mycoBinR") #"ggraph",
+          "taxize", "taxonomizr", "tibble", "tidyr", "mycoBinR" , "kableExtra")
 
 lapply(libs, library, character.only = TRUE)
 
@@ -29,18 +30,17 @@ base_path <- params$base_path %||% getwd()
 project_nr <- params$project_nr
 samples <- params$sample
 API_KEY_GLOBAL = params$api_key
+
+base_path <- "/home/paul/Test_for_whole_thing/Test_Laptop3_1/PacBio_output"
+project_nr <- "test_"
+samples <- "001"
+API_KEY_GLOBAL = "d8446dc4ebb96288839b39e3911b79cfcb08"
+
 ```
 
+```{r funtions, include = FALSE}
 
-# Quality statistcs of the unsassembled libraries
-
-I used *longreadQC* to approximate the quality of the long read libraries.
-
-
-
-# Defining functions
-```{r funtions}
-    # Function to make plot creation easier
+# Function to make plot creation easier
 create_plot <- function(df, fill_var, title, legend_title = NULL) {
     p <- ggplot(df, aes(x = gc, y = log(cov), fill = fill_var)) +
         geom_point(aes(size = len), alpha = 0.4, pch = 21) +
@@ -55,138 +55,315 @@ create_plot <- function(df, fill_var, title, legend_title = NULL) {
 
 # Drop contigs with no usable info (len, cov, gc all NA/zero AND no BUSCO counts)
 drop_empty_contigs <- function(DATA) {
-  if (is.null(DATA) || !nrow(DATA)) return(DATA)
+    if (is.null(DATA) || !nrow(DATA)) return(DATA)
 
-  # Ensure numeric
-  DATA$len <- suppressWarnings(as.numeric(DATA$len))
-  DATA$cov <- suppressWarnings(as.numeric(DATA$cov))
-  DATA$gc  <- suppressWarnings(as.numeric(DATA$gc))
+    # Ensure numeric
+    DATA$len <- suppressWarnings(as.numeric(DATA$len))
+    DATA$cov <- suppressWarnings(as.numeric(DATA$cov))
+    DATA$gc  <- suppressWarnings(as.numeric(DATA$gc))
 
-  # BUSCO columns might be absent; treat missing as 0 for the test
-  for (cc in c("Complete","Duplicated","Fragmented")) {
-    if (!cc %in% names(DATA)) DATA[[cc]] <- NA_integer_
-  }
-  busco_sum <- rowSums(cbind(DATA$Complete, DATA$Duplicated, DATA$Fragmented), na.rm = TRUE)
-
-  empty <- (is.na(DATA$len) | DATA$len <= 0) &
-           (is.na(DATA$cov) | DATA$cov <= 0) &
-           is.na(DATA$gc) &
-           (busco_sum == 0)
-
-  n_drop <- sum(empty, na.rm = TRUE)
-  if (n_drop > 0) message("Dropping ", n_drop, " empty contig(s) (no len/cov/gc and no BUSCO).")
-  DATA[!empty, , drop = FALSE]
-}
-```
-
-```{r process_sample for testing, include = FALSE}
-process_sample <- function(base_path, project_nr, TITLE) {
-    
-    paths_df <- mycoBinR::create_filepaths_df(base_path, project_nr, TITLE)
-    
-    #paths_df <- create_filepaths_df(base_path, project_nr, TITLE)
-
-    # Process and plot
-    #DATA <- process_and_plot(paths_df = paths_df)
-    
-    DATA <- mycoBinR::build_contig_table(paths_df = paths_df, api_key = API_KEY_GLOBAL)
-
-    DATA <- drop_empty_contigs(DATA)
-    
-    # Create plots
-    p1 <- create_plot(DATA, factor(DATA$clas), TITLE, legend_title="plot1_legend")
-    p2 <- create_plot(DATA, DATA$bc1, TITLE, legend_title="plot2_legend")
-    p3 <- create_plot(DATA, DATA$bc_combined, TITLE, legend_title="plot3_legend")
-        
-    p4 <- create_plot(DATA, DATA$tax_cons, TITLE, legend_title = "Cluster")
-    p4_legend <- get_legend(p4)
-
-    # Plot
-    print(p1); print(p2); print(p3)
-    
-    print(p3 + facet_wrap(~factor(clas),scales="free"))
-
-    print(p4 + theme(legend.position = "none"))
-    print(as_ggplot(p4_legend))
-    print(p4 + facet_wrap(~factor(tax_cons)) + theme(legend.position = "none"))
-
-    # Use DATA if provided; otherwise, fallback to foo for parse_telomeres
-    parse_data <- if (!missing(DATA)) DATA else foo
-    
-    # Parse telomeres
-    telomeres <- mycoBinR::parse_telomeres(DATA, paths_df)
-  
-    #telomeres <- parse_telomeres_old(DATA = parse_data, paths_df = paths_df)
-    
-    # Plot telomere classification vs GC/Coverage
-    # Plot needs more description
-    plot_data <- cbind(DATA, tel = telomeres$telcomp)
-    p_t <- ggplot(plot_data, aes(x = gc, y = log(cov), fill = DATA$summ_class)) +
-        geom_point(aes(size = len), alpha = 0.4, pch = 21) +
-        ggtitle(TITLE) +
-        theme_bw() +
-        facet_wrap(~factor(tel)) +
-        theme(legend.position = "none")
-    
-    print(p_t)
-    
-    # Ensure required BUSCO columns exist
-    required_cols <- c("Complete", "Fragmented", "Duplicated")
-    missing <- setdiff(required_cols, names(DATA))
-    if (length(missing)) {
-        DATA[missing] <- 0L
+    # BUSCO columns might be absent; treat missing as 0 for the test
+    for (cc in c("Complete","Duplicated","Fragmented")) {
+        if (!cc %in% names(DATA)) DATA[[cc]] <- NA_integer_
     }
+    busco_sum <- rowSums(cbind(DATA$Complete, DATA$Duplicated, DATA$Fragmented), na.rm = TRUE)
 
-    # If no data, print message instead of crashing
-    if (NROW(DATA) == 0) {
-        cat("No contigs available to display.\n")
-    } else {
-        # Safe computation of number of rows to show
-        counts_mat <- suppressWarnings(DATA[, required_cols])
-        busco_sum <- rowSums(counts_mat, na.rm = TRUE)
-        n_to_show <- sum(busco_sum != 0, na.rm = TRUE) + 10
-        n_to_show <- max(1, min(NROW(DATA), n_to_show))
+    empty <- (is.na(DATA$len) | DATA$len <= 0) &
+            (is.na(DATA$cov) | DATA$cov <= 0) &
+            is.na(DATA$gc) &
+            (busco_sum == 0)
 
-        DATA %>%
-            arrange(desc(Complete + Fragmented + Duplicated)) %>%
-            head(n_to_show) %>%
-            select(cov, len, gc, Complete, Duplicated, Fragmented,
-                   kingdom, phylum, class, genus) %>%
-            knitr::kable() %>%
-            print()
-    }
-
-     # Incorporate bam bubbles
-    DATA <- mycoBinR::incorporate_bam_bubbles(DATA = DATA, telomeres = telomeres, paths_df = paths_df)
-  
-    p5 <- p5 <- create_plot(DATA, DATA$tax_cons, TITLE)
-    p5_legend <- get_legend(p5)
-
-    print(p5 + theme(legend.position = "none"))
-    print(as_ggplot(p5_legend))
-    print(p5 + facet_wrap(~ factor(tax_cons)) + theme(legend.position = "none"))
-
-    # Check tables
-    print(knitr::kable(table(DATA$tax_cons, DATA$phylum)))
-    
-    # Export bed and fasta
-    mycoBinR::export_binned(DATA, paths_df = paths_df, SAMPLE = TITLE) 
-    #export_binned_old(DATA, paths_df = paths_df, SAMPLE = TITLE) 
-    
-    # Return objects
-    list(foo = DATA, telomeres = telomeres)
-    
+    n_drop <- sum(empty, na.rm = TRUE)
+    if (n_drop > 0) message("Dropping ", n_drop, " empty contig(s) (no len/cov/gc and no BUSCO).")
+    DATA[!empty, , drop = FALSE]
 }
-```
-## Sample 001 – Bryoria fremontii
 
-
-This is by far the best library. The first run using busco suggests that 23 contigs belong to the target fungus, and have a coverage depth  of 158x.
-
-
-### Figures
-
-```{r main}
-result <- process_sample(base_path, project_nr, samples)
 ```
 
+---
+
+> **Project:** `r params$project_nr`  
+> **Sample:** `r params$sample`  
+> **Rendered:** `r format(Sys.time(), "%Y-%m-%d %H:%M:%S")`  
+> **Package:** mycoBinR `r if (requireNamespace("mycoBinR", quietly=TRUE)) as.character(packageVersion("mycoBinR")) else "not installed"`  
+> **Pipeline:** schwammerlRohr
+
+---
+
+# Quality assessment of unassembled libraries
+
+The quality of the long-read sequencing libraries was evaluated using *LongreadQC*.
+
+```{r quality, echo=FALSE, results='asis'}
+
+# Read and process JSON files for each sample
+json_list <- lapply(samples, function(i) {
+    json_file <- file.path(base_path, "longqc_output", paste0(project_nr, i, "_quality"), "QC_vals_longQC_sampleqc.json")
+    json_data <- fromJSON(file = json_file)
+    data.frame(json_data)[1, ]  # extract first row as data.frame
+})
+
+# Combine into one data frame
+OUT <- do.call(rbind, json_list)
+
+# Assign meaningful row names
+rownames(OUT) <- paste0("Sample_", samples)
+
+# Display as table
+OUT %>%
+    t() %>%
+    knitr::kable() %>%
+    kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+```
+
+```{r process_sample, include = FALSE}
+
+paths_df <- mycoBinR::create_filepaths_df(base_path, project_nr, samples)
+DATA <- mycoBinR::build_contig_table(paths_df = paths_df, api_key = API_KEY_GLOBAL)
+DATA <- drop_empty_contigs(DATA)
+    
+```
+    
+---
+
+# Results — Plot 1: `clas`
+
+**Objective**
+Visualizes the dirstribution of contigs in the GC-coverage space, colored by **`clas`**.
+
+**Method (summary)**
+Scatter plot where point size represents `len`, the y-axis shows = `log(coverage + 1)`, and the color scale indicates the `clas` category.
+
+```{r plot-clas, echo = FALSE, fig.width=8, fig.height=5, fig.cap="Plot 1 — GC vs Coverage, colored by clas."}
+
+p_clas <- create_plot(
+    df = DATA,
+    fill_var = factor(DATA$clas),
+    title = "GC vs Coverage — clas",
+    legend_title = "clas"
+)
+p_clas
+
+```
+    
+---
+    
+# Results — Plot 2: BUSCO „complete“ (True/False)
+
+**Objective**
+Evaluates whether contigs contain **at least one** complete BUSCO gene (True) versus none (False).
+
+**Method (summary)**
+Same scatter plot style as above; the **color code** represents the `busco_complete_flag` variable.
+
+```{r plot-busco-complete, echo = FALSE, fig.width=8, fig.height=5, fig.cap="Plot 2 — GC vs Coverage, BUSCO complete (True/False)."}
+
+p_busco_complete <- create_plot(
+    df = DATA, 
+    fill_var = factor(DATA$bc1),
+    title = "GC vs Coverage — BUSCO complete flag",
+    legend_title = "BUSCO complete"
+)
+p_busco_complete
+
+```    
+    
+---
+
+# Results — Plot 3: BUSCO „combined“
+
+**Objective**
+Displays the combined BUSCO category (e.g., “High”, “Medium”, “Low”).
+
+**Method (summary)**
+Same plotting approach as above; the **color legend** represents the `bc_combined` classification.
+
+```{r plot-busco-combined, echo = FALSE, fig.width=8, fig.height=5, fig.cap="Plot 3 — GC vs Coverage, BUSCO combined."}
+
+p_busco_combined <- create_plot(
+    df = DATA,
+    fill_var = factor(DATA$bc_combined),
+    title = "GC vs Coverage — BUSCO combined",
+    legend_title = "BUSCO combined"
+)
+p_busco_combined
+
+```
+ 
+### Faceted view by `clas`
+
+To explore BUSCO categories across classification levels, we facet the same plot by `clas`.
+
+```{r plot-busco-combined-facet, echo = FALSE, fig.width=9, fig.height=6, fig.cap="Plot 3b — BUSCO combined faceted by clas."}
+
+p_busco_combined + 
+    facet_wrap(~factor(clas), scales = "free") +
+    theme(legend.position = "bottom")
+
+```
+ 
+---
+
+# Results — Plot 4: Taxonomic consensus
+
+**Objective**
+Visualize the distribution of contigs in GC–coverage space, colored by their **taxonomic consensus (`tax_cons`)** to highlight probable taxonomic groups (e.g., genus/cluster-level assignments) and their coverage/GC characteristics.
+
+**Method (summary)**
+Scatter plot with point size proportional to **contig length (`len`)** and y-axis on **log(coverage + 1)**. Points are colored by **`tax_cons`**, showing different taxonomic groups.
+
+```{r plot-tax-cons, echo = FALSE, fig.width=8, fig.height=5, fig.cap="Plot 4 — GC vs Coverage, colored by taxonomic consensus (tax_cons)."}
+
+p_busco_combined <- create_plot(
+    df = DATA,
+    fill_var = factor(DATA$tax_cons),
+    title = "GC vs Coverage — Tax_cons",
+    legend_title = "Tax Cons"
+)
+p_busco_combined
+
+```
+
+### Faceted view by `tax_cons`
+
+Faceted visualization of the Taxonomic Consensus classes.
+
+```{r plot-tax-cons-facet, echo = FALSE, fig.width=9, fig.height=6, fig.cap="Plot 4b — GC vs Coverage, Faceted by taxonomic consensus (one panel per tax_cons)."}
+
+p_tax_cons <- create_plot(
+    df = DATA,
+    fill_var = factor(DATA$tax_cons),
+    title = "GC vs Coverage — Tax_cons",
+    legend_title = "Tax Cons"
+)
+
+p_tax_cons + 
+    facet_wrap(~factor(tax_cons)) + 
+    theme(legend.position = "none")
+
+```
+
+---
+
+```{r parse-telomeres, echo=FALSE} 
+
+telomeres <- mycoBinR::parse_telomeres(DATA, paths_df)
+
+```
+
+---
+
+# Results — Plot 5: Telomere composition
+
+**Objective**
+Visualize contigs by **telomere composition/class** to assess genome completeness patterns and potential chromosomal fragments across GC–coverage space.
+
+**Method (summary)**
+Create a scatter plot of contigs (size ∝ `len`, y = `log(coverage + 1)`), colored by summary class (`summ_class`) and **faceted** by telomere class (`tel`). This highlights how telomere categories distribute across coverage/GC and whether specific classes co-occur with higher completeness
+
+```{r plot-telomeres, echo = FALSE, fig.width=8, fig.height=5, fig.cap="Plot 5 — GC vs Coverage, faceted by telomere class."}
+
+plot_data <- cbind(DATA, tel = telomeres$telcomp)
+plot_telo <- ggplot(plot_data, aes(x = gc, y = log(cov), fill = DATA$summ_class)) +
+    geom_point(aes(size = len), alpha = 0.4, pch = 21) +
+    ggtitle(samples) +
+    theme_bw() +
+    facet_wrap(~factor(tel)) +
+    theme(legend.position = "bottom")
+plot_telo
+
+```
+
+---
+
+```{r incorporate-bam-bubbles, echo=FALSE}
+
+DATA <- mycoBinR::incorporate_bam_bubbles(DATA = DATA, telomeres = telomeres, paths_df = paths_df)
+
+```
+
+---
+
+# Results — Plot 6: Taxonomic consensus (after BAM bubbles)
+
+**Objective**
+Assess **taxonomic consensus (`tax_cons`) after BAM bubble integration**, to see whether read-support adjustments shift contig assignments or clarify clusters.
+
+**Method (summary)**
+Scatter plot (size ∝ `len`, y = `log(coverage + 1)`) colored by **updated `tax_cons`**, plus a **faceted view** (one panel per `tax_cons`) to examine intra-class structure post-integration.
+
+```{r plot-bamed-telomeres, echo = FALSE, fig.width=8, fig.height=5, fig.cap="Plot 6 — GC vs Coverage colored by updated tax_cons (after BAM bubbles)."}
+
+p_tax_cons <- create_plot(
+    df = DATA,
+    fill_var = factor(DATA$tax_cons),
+    title = "GC vs Coverage — Taxonomic consensus (post-BAM)",
+    legend_title = "Tax Cons"
+)
+
+p_tax_cons + 
+    facet_wrap(~factor(tax_cons)) + 
+    theme(legend.position = "none")
+
+```
+
+---
+
+# Distribution of contigs per taxonomic consensus and phylum
+
+```{r table-taxcon-phylum, echo=FALSE, results='asis'}
+
+DATA %>%
+    count(tax_cons, phylum) %>%
+    tidyr::pivot_wider(names_from = phylum, values_from = n, values_fill = 0) %>%
+    knitr::kable(
+        align = "c"
+    ) %>%
+    kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+```
+
+---
+
+# Overview of contig completeness and taxonomy metrics
+
+```{r table-busco-completenes, echo = FALSE, results='asis'}
+
+required_cols <- c("Complete", "Fragmented", "Duplicated")
+# If no data, print message instead of crashing
+if (NROW(DATA) == 0) {
+    cat("No contigs available to display.\n")
+} else {
+    # Safe computation of number of rows to show
+    counts_mat <- suppressWarnings(DATA[, required_cols])
+    busco_sum <- rowSums(counts_mat, na.rm = TRUE)
+    n_to_show <- sum(busco_sum != 0, na.rm = TRUE) + 10
+    n_to_show <- max(1, min(NROW(DATA), n_to_show))
+
+    DATA %>%
+        arrange(desc(Complete + Fragmented + Duplicated)) %>%
+        head(n_to_show) %>%
+        select(cov, len, gc, Complete, Duplicated, Fragmented,
+               kingdom, phylum, class, genus) %>%
+        knitr::kable(
+            align = "c"
+        ) %>%
+        kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+}
+
+```
+
+```{r export-binned, echo=FALSE}
+
+    mycoBinR::export_binned(DATA, paths_df = paths_df, SAMPLE = samples) 
+
+```
+
+---
+
+# Reproducability
+
+```{r session-info, echo=TRUE}
+sessionInfo()
+```
