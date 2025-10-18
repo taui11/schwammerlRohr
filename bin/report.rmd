@@ -28,7 +28,7 @@ libs <- c(
     "knitr",        # tables (kable)
     "kableExtra",   # styled tables
     "purrr",        # for %||%
-    "mclust"
+    "mclust", reshape2
 )
 lapply(libs, library, character.only = TRUE)
 
