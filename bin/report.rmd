@@ -27,7 +27,8 @@ libs <- c(
     "jsonlite",     # read JSON files
     "knitr",        # tables (kable)
     "kableExtra",   # styled tables
-    "purrr"        # for %||%
+    "purrr",        # for %||%
+    "mclust"
 )
 lapply(libs, library, character.only = TRUE)
 
