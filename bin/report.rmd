@@ -10,6 +10,7 @@ params:
   output_dir: NA
   base_path: NA
   api_key: ""
+  run_id: NA
   extra_params: NULL
 ---
 
@@ -36,6 +37,7 @@ base_path <- params$base_path %||% getwd()
 project_nr <- params$project_nr
 samples <- params$sample
 API_KEY_GLOBAL = params$api_key
+time <- params$run_id
 
 ```
 
@@ -85,7 +87,7 @@ drop_empty_contigs <- function(DATA) {
 
 > **Project:** `r params$project_nr`  
 > **Sample:** `r params$sample`  
-> **Rendered:** `r format(Sys.time(), "%Y-%m-%d %H:%M:%S")`  
+> **Rendered:** `r format(time)`  
 > **Package:** mycoBinR `r if (requireNamespace("mycoBinR", quietly=TRUE)) as.character(packageVersion("mycoBinR")) else "not installed"`  
 > **Pipeline:** schwammerlRohr
 
