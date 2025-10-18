@@ -26,7 +26,7 @@ From: rocker/r2u:24.04
     # Everything via pak (no install.packages / BiocManager to avoid ABI mixing)
     R --quiet --vanilla -e 'pak::pak(c(
       "rmarkdown","knitr","dplyr","tidyr","tibble",
-      "ggplot2","cowplot","jsonlite","stargazer","htmlTable","rjson",
+      "ggplot2","cowplot","jsonlite","stargazer","htmlTable","rjson","kableExtra",
       "taxonomizr","ggpubr","ggraph","mclust","ape","clue","igraph","reshape2","taxize"
     ), upgrade=FALSE)'
 
