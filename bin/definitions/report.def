@@ -25,19 +25,12 @@ From: rocker/r2u:24.04
 
     # Everything via pak (no install.packages / BiocManager to avoid ABI mixing)
     R --quiet --vanilla -e 'pak::pak(c(
-      "rmarkdown","knitr","dplyr","tidyr","tibble",
-      "ggplot2","cowplot","jsonlite","stargazer","htmlTable","rjson","kableExtra",
-      "taxonomizr","ggpubr","ggraph","mclust","ape","clue","igraph","reshape2","taxize"
+        "ggplot2", "dplyr", "tidyr", "jsonlite", "knitr", "kableExtra", "purrr"
     ), upgrade=FALSE)'
-
-    R --quiet --vanilla -e 'pak::pak(c("bioc::Biostrings","bioc::Rsamtools"), upgrade=FALSE)'
 
     R --quiet --vanilla -e 'pak::pak(c(
-      "GuillemSalazar/FastaUtils",   # GitHub (not on CRAN)
       "taui11/mycoBinR"
     ), upgrade=FALSE)'
-
-
 
 %runscript
     exec /bin/bash -lc "$@"
