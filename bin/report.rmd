@@ -19,11 +19,16 @@ params:
 all_params <- params
 
 # Load required libraries
-libs <- c("ape", "Biostrings", "clue", "cowplot", "dplyr", "FastaUtils",
-           "ggplot2", "ggpubr", "htmlTable", "igraph", "jsonlite", "knitr",
-          "mclust", "parallel", "purrr", "reshape2", "rjson", "Rsamtools", "stargazer",
-          "taxize", "taxonomizr", "tibble", "tidyr", "mycoBinR" , "kableExtra")
-
+libs <- c(
+    "mycoBinR",     # main pipeline package
+    "ggplot2",      # plotting
+    "dplyr",        # data manipulation
+    "tidyr",        # data reshaping
+    "jsonlite",     # read JSON files
+    "knitr",        # tables (kable)
+    "kableExtra",   # styled tables
+    "purrr",        # for %||%
+)
 lapply(libs, library, character.only = TRUE)
 
 base_path <- params$base_path %||% getwd()
