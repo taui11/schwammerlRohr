@@ -36,11 +36,6 @@ project_nr <- params$project_nr
 samples <- params$sample
 API_KEY_GLOBAL = params$api_key
 
-base_path <- "/home/paul/Test_for_whole_thing/Test_Laptop3_1/PacBio_output"
-project_nr <- "test_"
-samples <- "001"
-API_KEY_GLOBAL = "d8446dc4ebb96288839b39e3911b79cfcb08"
-
 ```
 
 ```{r funtions, include = FALSE}
