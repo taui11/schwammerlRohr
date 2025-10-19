@@ -238,10 +238,10 @@ rule diamond_blastp:
         METAEUK_FILE="{params.busco_dir}/run_ascomycota_odb12/metaeuk_output/combined_pred_proteins.fas"
 
         if [ -f "$METAEUK_FILE" ]; then
-            PROT="{output.outdir}/{wildcards.sample}_metaeuk.faa"
+            PROT="{output.outdir}/{w.sample}_metaeuk.faa"
             cp "$METAEUK_FILE" "$PROT"
         else
-            echo "MetaEuk proteins not found for sample {wildcards.sample}: $METAEUK_FILE" >&2
+            echo "MetaEuk proteins not found for sample {w.sample}: $METAEUK_FILE" >&2
             exit 1
         fi
 
