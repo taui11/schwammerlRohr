@@ -235,14 +235,23 @@ rule diamond_blastp:
         set -euo pipefail
         mkdir -p {output.outdir}
 
+        MINIPROT_DIR="{params.busco_dir}/run_ascomycota_odb12/miniprot_output/translated_proteins"
         METAEUK_FILE="{params.busco_dir}/run_ascomycota_odb12/metaeuk_output/combined_pred_proteins.fas"
 
-        if [ -f "$METAEUK_FILE" ]; then
+        # Decide protein source (prefer miniprot if any .faa present)
+        if compgen -G "$MINIPROT_DIR"/*.faa > /dev/null; then
+            PROT="{output.outdir}/{wildcards.sample}_miniprot.faa"
+            cat "$MINIPROT_DIR"/*.faa > "$PROT"
+        elif [ -s "$METAEUK_FILE" ]; then
             PROT="{output.outdir}/{wildcards.sample}_metaeuk.faa"
             cp "$METAEUK_FILE" "$PROT"
         else
-            echo "MetaEuk proteins not found for sample {wildcards.sample}: $METAEUK_FILE" >&2
+            echo "No proteins found for BUSCO in sample {wildcards.sample}" >&2
+            # EITHER fail hard:
             exit 1
+            # OR, if you prefer to keep DAG moving, create empty output and exit 0:
+            # : > "{output.tax}"
+            # exit 0
         fi
 
         diamond blastp \
