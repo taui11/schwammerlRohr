@@ -6,13 +6,9 @@ INPUT_DIR="PacBio_data"
 OUTPUT_DIR="PacBio_output"
 DEF_DIR="bin/definitions"
 SINGULARITY_DIR="bin/singularity"
-TMP_DIR="bin/tmp"
-CACHE_DIR="bin/cache"
 
 required_dirs=(
   "$SINGULARITY_DIR"
-  "$TMP_DIR"
-  "$CACHE_DIR"
   "$INPUT_DIR"
   "$OUTPUT_DIR/longqc_output"
   "$OUTPUT_DIR/flye_output"

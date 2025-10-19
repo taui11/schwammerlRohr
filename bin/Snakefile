@@ -204,8 +204,6 @@ rule diamond_blastp:
             --out "{output.tax}"
         """
 
-
-
 rule render_report:
     input:
         # Make sure your analysis finished first:
