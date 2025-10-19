@@ -55,6 +55,9 @@ fi
 
 # Detect container runtime flag for Snakemake
 USE_CONTAINER_FLAG="--use-singularity"
+if command -v apptainer >/dev/null 2>&1 && ! command -v singularity >/dev/null 2>&1; then
+  USE_CONTAINER_FLAG="--use-apptainer"
+fi
 
 # Build Snakemake arg list
 declare -a SNK_ARGS
