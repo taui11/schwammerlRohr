@@ -222,7 +222,6 @@ rule diamond_blastp:
     input:
         ok=ok_marker("{sample}"),
         dmnd=DIAMOND_DB,
-        miniprot_dir = directory(f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{{sample}}_busco/run_ascomycota_odb12/miniprot_output/translated_proteins"),
         metaeuk_faa  = f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{{sample}}_busco/run_ascomycota_odb12/metaeuk_output/combined_pred_proteins.fas"
     output:
         outdir=directory(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots"),
