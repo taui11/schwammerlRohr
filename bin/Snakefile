@@ -50,7 +50,7 @@ def fq_path(sample):
     return f"{INPUT_DIR}/{PROJECT_NR}{sample}.hifireads.fastq.gz"
 
 def ok_marker(sample):
-    return temp(f"{OUTPUT_DIR}/.ok/{PROJECT_NR}{sample}.inputs.ok")  # temp => auto-removed
+    return f"{OUTPUT_DIR}/.ok/{PROJECT_NR}{sample}.inputs.ok"  
 
 def completion_marker(sample):
     return touch(f"{OUTPUT_DIR}/.complete/{PROJECT_NR}{sample}.complete")
@@ -65,8 +65,6 @@ rule all:
         expand(f"{OUTPUT_DIR}/reports/{PROJECT_NR}" + "{sample}_report.html", sample=SAMPLES),
         # per-sample completion flags
         expand(f"{OUTPUT_DIR}/.complete/{PROJECT_NR}" + "{sample}.complete", sample=SAMPLES)
-
-
 
 ########################
 #   Input validation   #
