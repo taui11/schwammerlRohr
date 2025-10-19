@@ -20,7 +20,7 @@ THREADS = workflow.cores
 DIAMOND_DB_DIR = os.path.dirname(DIAMOND_DB)
 OUTPUT_DIR = "PacBio_output"
 INPUT_DIR = "PacBio_data"
-SINGULARITY_DIR = "bin/singularity"
+SING_DIR = "bin/singularity"
 
 ##################
 #   Definitions  #
