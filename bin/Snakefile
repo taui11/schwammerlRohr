@@ -223,7 +223,7 @@ rule diamond_blastp:
         ok=ok_marker("{sample}"),
         dmnd=DIAMOND_DB
     output:
-        outdir=directory(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}" + "{sample}_taxonomy_prots"),
+        outdir=directory(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}" + "{{sample}}_taxonomy_prots"),
         tax=f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}" + "{{sample}}_taxonomy_prots/{PROJECT_NR}{{sample}}_taxprot"
     params:
         busco_dir=lambda w: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{w.sample}_busco"
