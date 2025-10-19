@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 import time
 
 ###########################
@@ -14,133 +16,175 @@ API_KEY = ""
 
 DIAMOND_DB = config.get("diamond_db", "path/to/DiamondDB.dmnd")
 PROJECT_NR = config.get("project_nr", "nr_") 
-SAMPLES = config.get("samples", "001")  
-SAMPLE = config.get("sample", None)
 THREADS = workflow.cores
 DIAMOND_DB_DIR = os.path.dirname(DIAMOND_DB)
 OUTPUT_DIR = "PacBio_output"
 INPUT_DIR = "PacBio_data"
 SINGULARITY_DIR = "bin/singularity"
 
-#############
-#   RULES   #
-#############
+##################
+#   Definitions  #
+##################
 
+def _as_list(x):
+    if x is None:
+        return None
+    if isinstance(x, (list, tuple)):
+        return list(x)
+    s = str(x).strip()
+    if not s:
+        return None
+    return [t.strip() for t in s.split(",") if t.strip()]
+
+SAMPLES = _as_list(config.get("samples"))
+# Fallback: auto-discover samples from files like PacBio_data/nr_001.hifireads.fastq.gz
+if not SAMPLES:
+    gw = glob_wildcards(f"{INPUT_DIR}/{PROJECT_NR}" + "{sample}.hifireads.fastq.gz")
+    SAMPLES = sorted(set(gw.sample))
+    if not SAMPLES:
+        raise ValueError("No samples provided and none auto-discovered. "
+                         "Provide --config samples=001,002 or place input files.")
+
+# Paths/helpers
+def fq_path(sample):
+    return f"{INPUT_DIR}/{PROJECT_NR}{sample}.hifireads.fastq.gz"
+
+def ok_marker(sample):
+    return temp(f"{OUTPUT_DIR}/.ok/{PROJECT_NR}{sample}.inputs.ok")  # temp => auto-removed
+
+def completion_marker(sample):
+    return touch(f"{OUTPUT_DIR}/.complete/{PROJECT_NR}{sample}.complete")
+
+######################
+#   Top-level Rules  #
+######################
 
 rule all:
     input:
-        ".inputs_ok",
-        # LongQC outputs
-        expand(f"{OUTPUT_DIR}/longqc_output/{PROJECT_NR}{{sample}}_quality", sample=SAMPLES),
-        # Flye outputs
-        expand(f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye", sample=SAMPLES),
-        # CoverM outputs
-        expand(f"{OUTPUT_DIR}/coverm_output/{PROJECT_NR}{{sample}}_mean_cov", sample=SAMPLES),
-        # Busco outputs
-        expand(f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{{sample}}_busco", sample=SAMPLES),
-        # Diamond output
-        expand(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots", sample=SAMPLES),
-        # TelFinder output
-        expand(f"{OUTPUT_DIR}/telfinder_output/{PROJECT_NR}{{sample}}_telomeres", sample=SAMPLES),
-        # Report output
-        expand(f"{OUTPUT_DIR}/reports/{PROJECT_NR}{{sample}}_report.html", sample=SAMPLES)
+        # reports
+        expand(f"{OUTPUT_DIR}/reports/{PROJECT_NR}" + "{sample}_report.html", sample=SAMPLES),
+        # per-sample completion flags
+        expand(f"{OUTPUT_DIR}/.complete/{PROJECT_NR}" + "{sample}.complete", sample=SAMPLES)
 
 
-rule inputs_ok:
+
+########################
+#   Input validation   #
+########################
+
+rule check_input:
+    """
+    Per-sample input guard:
+    - File exists
+    - Non-empty
+    - gzip integrity check
+    Produces a temp() OK marker (auto-cleaned on success).
+    """
+    input:
+        fastq=lambda wc: fq_path(wc.sample)
     output:
-        ".inputs_ok"
-    run:
-        import os
-        missing = []
-        for sample in SAMPLES:
-            path = f"{INPUT_DIR}/{PROJECT_NR}{sample}.hifireads.fastq.gz"
-            if not os.path.isfile(path):
-                missing.append(path)
-        if missing:
-            print(f"\nInput files missing:\n" + "\n".join(missing) + "\n")
-            print("Please add these input files and rerun Snakemake.")
-            exit(1) 
-            
-        # Create marker that inputs are OK
-        with open(output[0], "w") as f:
-            f.write("All inputs found\n")
+        ok=ok_marker("{sample}")
+    message:
+        "Checking input FASTQ for sample {wildcards.sample}"
+    shell:
+        r"""
+        set -euo pipefail
+        f="{input.fastq}"
+        [ -f "$f" ] || (echo "Missing: $f" >&2; exit 1)
+        [ -s "$f" ] || (echo "Empty file: $f" >&2; exit 1)
+        gzip -t "$f" || (echo "gzip integrity failed: $f" >&2; exit 1)
+        mkdir -p "$(dirname {output.ok})"
+        echo "OK {wildcards.sample}" > {output.ok}
+        """
+
+################
+#   LongQC     #
+################
 
 rule longqc:
     input:
-        ".inputs_ok",
-        fastq = f"{INPUT_DIR}/{PROJECT_NR}{{sample}}.hifireads.fastq.gz"
+        ok=ok_marker("{sample}"),
+        fastq=lambda wc: fq_path(wc.sample)
     output:
-        longqc_dir = directory(f"{OUTPUT_DIR}/longqc_output/{PROJECT_NR}{{sample}}_quality")
+        longqc_dir=directory(f"{OUTPUT_DIR}/longqc_output/{PROJECT_NR}" + "{sample}_quality")
     threads: THREADS
     singularity:
-        f"{SINGULARITY_DIR}/longqc.sif"
+        f"{SING_DIR}/longqc.sif"
     shell:
-        """
+        r"""
         python /root/LongQC/longQC.py sampleqc \
-            -x pb-rs2 \
-            -p {threads} \
-            -o {output.longqc_dir} \
-            {input.fastq}
+          -x pb-rs2 \
+          -p {threads} \
+          -o {output.longqc_dir} \
+          {input.fastq}
         """
+
+################
+#   Flye       #
+################
 
 rule flye_assembly:
     input:
-        ".inputs_ok",
-        fastq = f"{INPUT_DIR}/{PROJECT_NR}{{sample}}.hifireads.fastq.gz"
+        ok=ok_marker("{sample}"),
+        fastq=lambda wc: fq_path(wc.sample)
     output:
-        assembly_dir = directory(f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye"),
-        assembly = f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye/assembly.fasta"
+        assembly_dir=directory(f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}" + "{sample}_flye"),
+        assembly=f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}" + "{sample}_flye/assembly.fasta"
     threads: THREADS
     singularity:
-        f"{SINGULARITY_DIR}/flye.sif"
+        f"{SING_DIR}/flye.sif"
     shell:
-        """
+        r"""
         flye --pacbio-hifi {input.fastq} \
              --meta \
              --out-dir {output.assembly_dir} \
              --threads {threads}
         """
 
+################
+#   CoverM     #
+################
+
 rule coverm_coverage:
     input:
-        ".inputs_ok",
-        fastq = f"{INPUT_DIR}/{PROJECT_NR}{{sample}}.hifireads.fastq.gz",
-        assembly = f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye/assembly.fasta"
+        ok=ok_marker("{sample}"),
+        fastq=lambda wc: fq_path(wc.sample),
+        assembly=f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}" + "{sample}_flye/assembly.fasta"
     output:
-        coverage_dir = directory(f"{OUTPUT_DIR}/coverm_output/{PROJECT_NR}{{sample}}_mean_cov")
+        coverage_dir=directory(f"{OUTPUT_DIR}/coverm_output/{PROJECT_NR}" + "{sample}_mean_cov")
     threads: THREADS
     singularity:
-        f"{SINGULARITY_DIR}/coverm.sif"
+        f"{SING_DIR}/coverm.sif"
     shell:
-        """
+        r"""
         set -euo pipefail
-
-        OUTDIR="PacBio_output/coverm_output/{PROJECT_NR}{wildcards.sample}_mean_cov"
-        CACHE="$OUTDIR/bam_cache"
-
-        mkdir -p "$OUTDIR" "$CACHE"
+        mkdir -p {output.coverage_dir} {output.coverage_dir}/bam_cache
 
         coverm contig \
-            --single {input.fastq} \
-            -r {input.assembly} \
-            -p minimap2-hifi \
-            -m mean \
-            --threads {threads} \
-            --bam-file-cache-directory {output.coverage_dir}/bam_cache \
-            -o {output.coverage_dir}/mean_coverage.tsv
+          --single {input.fastq} \
+          -r {input.assembly} \
+          -p minimap2-hifi \
+          -m mean \
+          --threads {threads} \
+          --bam-file-cache-directory {output.coverage_dir}/bam_cache \
+          -o {output.coverage_dir}/mean_coverage.tsv
         """
+
+################
+#   BUSCO      #
+################
 
 rule busco_run:
     input:
-        ".inputs_ok",
-        assembly = f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye/assembly.fasta"
+        ok=ok_marker("{sample}"),
+        assembly=f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}" + "{sample}_flye/assembly.fasta"
     output:
-        busco_output = directory(f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{{sample}}_busco") 
+        busco_output=directory(f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}" + "{sample}_busco")
     threads: THREADS
     singularity:
-        f"{SINGULARITY_DIR}/busco.sif"
+        f"{SING_DIR}/busco.sif"
     shell:
-        """
+        r"""
         busco -i {input.assembly} \
               -m genome \
               -l ascomycota_odb12 \
@@ -152,34 +196,42 @@ rule busco_run:
               --download_path bin/BUSCO_downloads
         """
 
+################
+#  TelFinder   #
+################
+
 rule telfinder:
     input:
-        ".inputs_ok",
-        assembly = f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{{sample}}_flye/assembly.fasta"
+        ok=ok_marker("{sample}"),
+        assembly=f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}" + "{sample}_flye/assembly.fasta"
     output:
-        telomeres_dir = directory(f"{OUTPUT_DIR}/telfinder_output/{PROJECT_NR}{{sample}}_telomeres")
+        telomeres_dir=directory(f"{OUTPUT_DIR}/telfinder_output/{PROJECT_NR}" + "{sample}_telomeres")
     threads: THREADS
     singularity:
-        f"{SINGULARITY_DIR}/telfinder.sif"
+        f"{SING_DIR}/telfinder.sif"
     shell:
-        """
+        r"""
         mkdir -p {output.telomeres_dir}
         python /opt/TelFinder/TelFinder.py -f fa -inf {input.assembly} -s NCR -o {output.telomeres_dir} -e left
         python /opt/TelFinder/TelFinder.py -f fa -inf {input.assembly} -s NCR -o {output.telomeres_dir} -e right
         """
 
+################
+#   DIAMOND    #
+################
+
 rule diamond_blastp:
     input:
-        ".inputs_ok",
-        dmnd = DIAMOND_DB
+        ok=ok_marker("{sample}"),
+        dmnd=DIAMOND_DB
     output:
-        outdir = directory(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots"),
-        tax     = f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{{sample}}_taxonomy_prots/{PROJECT_NR}{{sample}}_taxprot"
+        outdir=directory(f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}" + "{sample}_taxonomy_prots"),
+        tax=f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}" + "{sample}_taxonomy_prots/{PROJECT_NR}{sample}_taxprot"
     params:
-        busco_dir = lambda w: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{w.sample}_busco"
+        busco_dir=lambda w: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{w.sample}_busco"
     threads: THREADS
     singularity:
-        f"{SINGULARITY_DIR}/diamond.sif"
+        f"{SING_DIR}/diamond.sif"
     shell:
         r"""
         set -euo pipefail
@@ -196,38 +248,38 @@ rule diamond_blastp:
         fi
 
         diamond blastp \
-            --query "$PROT" \
-            --db "{input.dmnd}" \
-            --threads {threads} \
-            --outfmt 102 \
-            --include-lineage \
-            --out "{output.tax}"
+          --query "$PROT" \
+          --db "{input.dmnd}" \
+          --threads {threads} \
+          --outfmt 102 \
+          --include-lineage \
+          --out "{output.tax}"
         """
+
+################
+#   Report     #
+################
 
 rule render_report:
     input:
-        # Make sure your analysis finished first:
-        inputs_ok = ".inputs_ok",
-        longqc    = lambda wc: f"{OUTPUT_DIR}/longqc_output/{PROJECT_NR}{wc.sample}_quality",
-        flye      = lambda wc: f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{wc.sample}_flye",
-        coverm    = lambda wc: f"{OUTPUT_DIR}/coverm_output/{PROJECT_NR}{wc.sample}_mean_cov",
-        busco     = lambda wc: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{wc.sample}_busco",
-        diamond   = lambda wc: f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{wc.sample}_taxonomy_prots",
-        telfinder = lambda wc: f"{OUTPUT_DIR}/telfinder_output/{PROJECT_NR}{wc.sample}_telomeres",
-        # Reporting prerequisites (must already exist):
-        REPORT_SIF      = f"{SINGULARITY_DIR}/report.sif",  # built by setup.sh
-        RMD_SRC         = "bin/report.rmd"
+        longqc=lambda wc: f"{OUTPUT_DIR}/longqc_output/{PROJECT_NR}{wc.sample}_quality",
+        flye=lambda wc: f"{OUTPUT_DIR}/flye_output/{PROJECT_NR}{wc.sample}_flye",
+        coverm=lambda wc: f"{OUTPUT_DIR}/coverm_output/{PROJECT_NR}{wc.sample}_mean_cov",
+        busco=lambda wc: f"{OUTPUT_DIR}/busco_output/{PROJECT_NR}{wc.sample}_busco",
+        diamond=lambda wc: f"{OUTPUT_DIR}/diamond_output/{PROJECT_NR}{wc.sample}_taxonomy_prots",
+        telfinder=lambda wc: f"{OUTPUT_DIR}/telfinder_output/{PROJECT_NR}{wc.sample}_telomeres",
+        REPORT_SIF=f"{SING_DIR}/report.sif",
+        RMD_SRC="bin/report.rmd"
     output:
-        html = f"{OUTPUT_DIR}/reports/{PROJECT_NR}{{sample}}_report.html"
+        html=f"{OUTPUT_DIR}/reports/{PROJECT_NR}" + "{sample}_report.html"
     params:
-        run_id = str(int(time.time()))
+        run_id=str(int(time.time()))
     threads: THREADS
     container:
-        f"{SINGULARITY_DIR}/report.sif"
+        f"{SING_DIR}/report.sif"
     shell:
         r"""
         set -eu
-        # Absolute output paths so rmarkdown won't get confused
         Rscript --vanilla -e "rmarkdown::render('$PWD/bin/report.rmd', \
             output_file = basename('$PWD/{output}'), \
             output_dir  = dirname('$PWD/{output}'), \
@@ -235,11 +287,22 @@ rule render_report:
             params = list( \
                 sample     = '{wildcards.sample}', \
                 project_nr = '{PROJECT_NR}', \
-                # pass absolute base/output paths:
                 base_path  = '$PWD/{OUTPUT_DIR}', \
                 output_dir = '$PWD/{OUTPUT_DIR}', \
-                # tip: prefer env var; but leaving as-is if you want:
                 api_key    = '{API_KEY}', \
-                run_id = '{params.run_id}' \
+                run_id     = '{params.run_id}' \
             ))"
         """
+
+#############################
+#   Per-sample completion   #
+#############################
+
+rule mark_complete:
+    input:
+        report=f"{OUTPUT_DIR}/reports/{PROJECT_NR}" + "{sample}_report.html"
+    output:
+        done=completion_marker("{sample}")
+    run:
+        Path(Path(output.done).parent).mkdir(parents=True, exist_ok=True)
+        Path(output.done).touch()
