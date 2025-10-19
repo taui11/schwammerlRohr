@@ -71,7 +71,7 @@ chmod +x run_pipeline.sh # make the file executable
 ./run_pipeline.sh \
   --cores 16 \
   --project_nr test_ \
-  --samples [001,002,003] \
+  --samples 001,002,003 \
   --db /path/to/DiamondDB.dmnd
 ```
 
@@ -93,8 +93,7 @@ schwammerlRohr/
 |   ├── definitions/      # Singularity definitions
 |   ├── report.rmd        # Rmd file for the final report (using mycoBinR)
 |   ├── setup.sh          # Setup file
-|   ├── Snakefile         # Snakefile for runing the pipeline
-|   └── tmp               # temporary folder used for setup and pipeline
+|   └── Snakefile         # Snakefile for runing the pipeline
 ├── PacBio_data/          # Input data
 ├── PacBio_output/        # Pipeline output
 └── README.md             # This file
@@ -107,6 +106,8 @@ schwammerlRohr/
 * **Linux environment**
 * **Snakemake ≥8.0**
 * **Singularity (or Apptainer) ≥3.8**
+* **R ≥4.3** with the package `rmarkdown` installed
+* **Python ≥3.10**
 
 ---
 
