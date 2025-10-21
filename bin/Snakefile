@@ -285,7 +285,6 @@ rule render_report:
     shell:
         r"""
         set -eu
-        END_TIME=$(date +%s)
         Rscript --vanilla -e "rmarkdown::render('$PWD/bin/report.rmd', \
             output_file = basename('$PWD/{output}'), \
             output_dir  = dirname('$PWD/{output}'), \
@@ -296,7 +295,7 @@ rule render_report:
                 base_path  = '$PWD/{OUTPUT_DIR}', \
                 output_dir = '$PWD/{OUTPUT_DIR}', \
                 api_key    = '{API_KEY}', \
-                run_id     = '{{END_TIME}}' \
+                run_id     = as.integer(Sys.time()) \
             ))"
         """
 
